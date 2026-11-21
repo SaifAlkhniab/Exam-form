@@ -25,6 +25,12 @@ export function parseExamText(rawText) {
     ],
     notice: '',
     teacher: '',
+    fontFamily: 'Amiri',
+    fontSize: '16.5',
+    lineHeight: '1.55',
+    headerBoxStyle: 'rectangle', // 'rectangle', 'rounded', 'borderless'
+    pageBorderStyle: 'single', // 'single', 'double', 'none'
+    titleStyle: 'plain', // 'plain', 'framed'
     questions: []
   };
 
@@ -44,7 +50,7 @@ export function parseExamText(rawText) {
     result.semester = val.startsWith('الدور') || val.startsWith('الفصل') ? val : `الفصل: ${val}`;
   }
 
-  // Term Title Banner (Strict single line, clean up to avoid "امتحانات امتحان")
+  // Term Title Banner
   const titleMatch = text.match(/(?:^|\n)\s*(أسئلة\s+امتحان\s*[:\-\/]?\s*([^\n\r]+)|أسئلة\s+([^\n\r/:]+)|امتحانات\s+([^\n\r/:]+))/);
   if (titleMatch) {
     let tVal = (titleMatch[2] || titleMatch[3] || titleMatch[4] || '').trim();
@@ -92,7 +98,7 @@ export function parseExamText(rawText) {
         qBody = qBody.replace(new RegExp(`(?:أستاذة?|المعلمة?|المدرس)\\s*المادة\\s*[:\\-\\/]?\\s*${result.teacher}[.\\s]*`, 'g'), '').trim();
       }
 
-      // Extract overall marks e.g. (٢٠ د), (١٥ د), (١٠ د), (د١٠)
+      // Extract marks e.g. (٢٠ د), (١٥ د), (١٠ د), (د١٠)
       let marks = '';
       const marksMatch = qBody.match(/\(([\d\u0660-\u0669]+\s*(?:د|درجة|درجات)|(?:د|درجة|درجات)\s*[\d\u0660-\u0669]+)\)/);
       if (marksMatch) {
@@ -101,7 +107,6 @@ export function parseExamText(rawText) {
       }
 
       // Check for top-level letter branches (أ /, ب/, ج/ or أ:, ب:, ج:)
-      // Note: we require slash or colon so we don't accidentally match multiple-choice options like "أ - القرن الأول"
       const branchPattern = /(?:^|\n)\s*([أ-ي])\s*[\/:]\s*/g;
       const branchMatches = [...qBody.matchAll(branchPattern)];
 
@@ -117,7 +122,6 @@ export function parseExamText(rawText) {
           const bLabel = bMatch[1].trim();
           let bContent = qBody.substring(bStart, bEnd).trim();
 
-          // Check if branch has its own mark
           let bMark = '';
           const bMarkMatch = bContent.match(/\(([\d\u0660-\u0669]+\s*(?:د|درجة|درجات)|(?:د|درجة|درجات)\s*[\d\u0660-\u0669]+)\)/);
           if (bMarkMatch) {
@@ -133,7 +137,6 @@ export function parseExamText(rawText) {
           });
         }
       } else {
-        // If no letter branches, check if it's a list of numbered items (1-, 2-, ...)
         const numItemPattern = /(?:^|\n)\s*([\d\u0660-\u0669]+[\-.\/]\s*[^\n\r]+)/g;
         const numItems = [...qBody.matchAll(numItemPattern)];
         if (numItems.length > 1) {
@@ -159,20 +162,17 @@ export function parseExamText(rawText) {
       });
     }
 
-    // 3. Smart Automatic Pagination Engine
-    // Page 1 capacity: ~18 units (has header box & notice)
-    // Page 2+ capacity: ~23 units
+    // Smart Automatic Pagination Engine
     let currentWeight = 0;
     let isPage1 = true;
 
     rawQuestions.forEach((q, idx) => {
-      // Calculate question visual weight (estimated height in lines)
-      let w = 2.0; // question title & spacing
+      let w = 2.0;
       if (q.mainText) {
         w += q.mainText.split('\n').length * 1.0;
       }
       (q.branches || []).forEach(b => {
-        w += 1.0; // branch label
+        w += 1.0;
         const lines = (b.content || '').split('\n');
         lines.forEach(l => {
           w += Math.max(1.0, l.length / 50.0);
@@ -182,7 +182,6 @@ export function parseExamText(rawText) {
       const maxCapacity = isPage1 ? 18.0 : 23.0;
 
       if (idx > 0 && currentWeight + w > maxCapacity) {
-        // Break to new page
         q.pageBreakBefore = true;
         currentWeight = w;
         isPage1 = false;
@@ -215,6 +214,9 @@ export const defaultExamData = {
   fontFamily: 'Amiri',
   fontSize: '16.5',
   lineHeight: '1.55',
+  headerBoxStyle: 'rectangle', // 'rectangle', 'rounded', 'borderless'
+  pageBorderStyle: 'single', // 'single', 'double', 'none'
+  titleStyle: 'plain', // 'plain', 'framed'
   questions: [
     {
       id: 'q_1',
@@ -278,7 +280,7 @@ export const defaultExamData = {
       number: 'س٤',
       mainText: 'اجيبي عن الفرعين فقط مماياتي.',
       marks: '(٢٠د)',
-      pageBreakBefore: true, // Page 2 starts here cleanly
+      pageBreakBefore: true,
       branches: [
         {
           id: 'b_4_1',
@@ -320,7 +322,7 @@ export const defaultExamData = {
       number: 'س٦',
       mainText: '',
       marks: '',
-      pageBreakBefore: true, // Page 3 starts here cleanly because Q6 is large!
+      pageBreakBefore: true,
       branches: [
         {
           id: 'b_6_1',

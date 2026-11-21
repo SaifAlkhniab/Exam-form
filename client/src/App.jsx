@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styles from './App.module.css';
 import { defaultExamData, parseExamText } from './utils/parser';
 import { exportToDocx } from './utils/docxExporter';
@@ -19,26 +19,41 @@ import {
   Type,
   Layers,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Settings,
+  Share2
 } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('editor'); // 'editor', 'smartPaste', 'preview'
+  const [activeTab, setActiveTab] = useState('editor'); // 'editor', 'smartPaste', 'settings', 'preview'
   const [examData, setExamData] = useState(defaultExamData);
   const [rawText, setRawText] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [expandedQuestions, setExpandedQuestions] = useState({});
-  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 960 : false);
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
       const w = window.innerWidth;
       setWindowWidth(w);
-      setIsMobile(w < 960);
+      setIsMobile(w < 768);
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const showToast = (msg) => {
@@ -62,12 +77,15 @@ export default function App() {
     }
     const parsed = parseExamText(rawText);
     if (parsed) {
-      setExamData({
+      setExamData(prev => ({
         ...parsed,
-        fontFamily: examData.fontFamily,
-        fontSize: examData.fontSize,
-        lineHeight: examData.lineHeight
-      });
+        fontFamily: prev.fontFamily,
+        fontSize: prev.fontSize,
+        lineHeight: prev.lineHeight,
+        headerBoxStyle: prev.headerBoxStyle,
+        pageBorderStyle: prev.pageBorderStyle,
+        titleStyle: prev.titleStyle
+      }));
       showToast('تم استيراد وتحليل وتوزيع صفحات الامتحان بنجاح!');
       setActiveTab('preview');
     } else {
@@ -239,12 +257,19 @@ export default function App() {
     }
   };
 
-  // Mobile Auto Scale factor
-  const mobileScale = useMemo(() => {
-    if (!isMobile) return 1;
-    const targetWidth = windowWidth - 32;
-    return Math.min(1, Math.max(0.38, targetWidth / 794));
-  }, [isMobile, windowWidth]);
+  // Header Box Class based on Settings
+  const headerBoxClass = useMemo(() => {
+    if (examData.headerBoxStyle === 'rounded') return styles.headerBoxRounded;
+    if (examData.headerBoxStyle === 'borderless') return styles.headerBoxBorderless;
+    return styles.headerBoxRectangle;
+  }, [examData.headerBoxStyle]);
+
+  // Page Border Class based on Settings
+  const pageBorderClass = useMemo(() => {
+    if (examData.pageBorderStyle === 'double') return styles.borderDouble;
+    if (examData.pageBorderStyle === 'none') return styles.borderNone;
+    return styles.borderSingle;
+  }, [examData.pageBorderStyle]);
 
   return (
     <div className={styles.appContainer}>
@@ -277,6 +302,13 @@ export default function App() {
                   <span>استيراد النص</span>
                 </button>
                 <button
+                  className={`${styles.tabBtn} ${activeTab === 'settings' ? styles.tabBtnActive : ''}`}
+                  onClick={() => setActiveTab('settings')}
+                >
+                  <Settings size={15} />
+                  <span>الإعدادات</span>
+                </button>
+                <button
                   className={`${styles.tabBtn} ${activeTab === 'preview' ? styles.tabBtnActive : ''}`}
                   onClick={() => setActiveTab('preview')}
                 >
@@ -285,14 +317,41 @@ export default function App() {
                 </button>
               </div>
 
-              <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrint}>
-                <Printer size={15} />
-                <span>تحميل PDF</span>
-              </button>
-              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleExportWord}>
-                <Download size={15} />
-                <span>ملف Word</span>
-              </button>
+              {/* UNIFIED EXPORT DROPDOWN */}
+              <div className={styles.exportWrapper} ref={exportMenuRef}>
+                <button
+                  className={`${styles.btn} ${styles.btnPrimary}`}
+                  onClick={() => setShowExportMenu(!showExportMenu)}
+                >
+                  <Share2 size={15} />
+                  <span>تصدير ▾</span>
+                </button>
+                {showExportMenu && (
+                  <div className={styles.exportDropdown}>
+                    <button
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handlePrint();
+                      }}
+                    >
+                      <Printer size={16} color="#1b5e20" />
+                      <span>تحميل ملف PDF (طباعة جاهزة)</span>
+                    </button>
+                    <div className={styles.dropdownDivider} />
+                    <button
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportWord();
+                      }}
+                    >
+                      <FileText size={16} color="#0284c7" />
+                      <span>تحميل مستند Word (.docx)</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
@@ -326,7 +385,7 @@ export default function App() {
       <main className={styles.mainLayout}>
         <div className={(!isMobile && activeTab !== 'preview') ? styles.desktopSplit : styles.singleColumn}>
           
-          {/* EDIT & FORM COLUMN (Hidden on mobile if user is on 'preview' tab) */}
+          {/* EDIT & FORM COLUMN (Hidden on mobile if activeTab === 'preview') */}
           {(!isMobile || activeTab !== 'preview') && (
             <div>
               {/* SMART IMPORT TAB */}
@@ -350,7 +409,7 @@ export default function App() {
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                     <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleAutoParse}>
                       <Sparkles size={15} />
-                      استخراج وتحديث النموذج وتوزيع الصفحات فوراً
+                      استخراج وتحديث النموذج فوراً
                     </button>
                     <button
                       className={`${styles.btn} ${styles.btnSecondary}`}
@@ -362,8 +421,103 @@ export default function App() {
                 </div>
               )}
 
+              {/* SETTINGS TAB */}
+              {activeTab === 'settings' && (
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.cardTitle}>
+                      <Settings size={17} />
+                      تخصيص النمط والشكل العام
+                    </h2>
+                  </div>
+
+                  {/* Header Box Shape */}
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionTitle}>
+                      <span>شكل إطار الترويسة العلوية</span>
+                    </div>
+                    <div className={styles.settingsGrid}>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.headerBoxStyle === 'rectangle' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, headerBoxStyle: 'rectangle' })}
+                      >
+                        <span className={styles.settingOptionName}>مستطيل حاد الزوايا (الافتراضي)</span>
+                        <span className={styles.settingOptionDesc}>النمط الرسمي المعتمد لمدارس الكفيل</span>
+                      </div>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.headerBoxStyle === 'rounded' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, headerBoxStyle: 'rounded' })}
+                      >
+                        <span className={styles.settingOptionName}>مستطيل بزوايا دائرية (Rounded)</span>
+                        <span className={styles.settingOptionDesc}>مظهر عصري وناعم لحواف الترويسة</span>
+                      </div>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.headerBoxStyle === 'borderless' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, headerBoxStyle: 'borderless' })}
+                      >
+                        <span className={styles.settingOptionName}>بدون إطار خارجي (Clean)</span>
+                        <span className={styles.settingOptionDesc}>فقط خط سفلي فاصل بدون صندوق كامل</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Page Border Style */}
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionTitle}>
+                      <span>نمط إطار الصفحة الخارجي</span>
+                    </div>
+                    <div className={styles.settingsGrid}>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.pageBorderStyle === 'single' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, pageBorderStyle: 'single' })}
+                      >
+                        <span className={styles.settingOptionName}>إطار مفرد رسمي (Single)</span>
+                        <span className={styles.settingOptionDesc}>خط أسود أنيق ومناسب للطباعة الرسمية</span>
+                      </div>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.pageBorderStyle === 'double' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, pageBorderStyle: 'double' })}
+                      >
+                        <span className={styles.settingOptionName}>إطار مزدوج (Double Border)</span>
+                        <span className={styles.settingOptionDesc}>إطار تقليدي كلاسيكي بخطين متوازيين</span>
+                      </div>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.pageBorderStyle === 'none' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, pageBorderStyle: 'none' })}
+                      >
+                        <span className={styles.settingOptionName}>بدون إطار (No Border)</span>
+                        <span className={styles.settingOptionDesc}>صفحة نظيفة مع هوامش بيضاء طبيعية</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Center Title Style */}
+                  <div className={styles.settingsSection}>
+                    <div className={styles.settingsSectionTitle}>
+                      <span>نمط عنوان الامتحان الأوسط</span>
+                    </div>
+                    <div className={styles.settingsGrid}>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.titleStyle === 'plain' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, titleStyle: 'plain' })}
+                      >
+                        <span className={styles.settingOptionName}>نص مباشر بدون إطار (المرجع الأصلي)</span>
+                        <span className={styles.settingOptionDesc}>نص عريض تحت الشعار مباشرة</span>
+                      </div>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.titleStyle === 'framed' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, titleStyle: 'framed' })}
+                      >
+                        <span className={styles.settingOptionName}>شريط مؤطر (Framed Badge)</span>
+                        <span className={styles.settingOptionDesc}>محدد بإطار مستطيل صغير حول العنوان</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* EXAM HEADER CARD */}
-              {activeTab !== 'smartPaste' && (
+              {activeTab === 'editor' && (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
                     <h2 className={styles.cardTitle}>
@@ -448,7 +602,7 @@ export default function App() {
               )}
 
               {/* QUESTIONS LIST */}
-              {activeTab !== 'smartPaste' && (
+              {activeTab === 'editor' && (
                 <div className={styles.card}>
                   <div className={styles.cardHeader}>
                     <h2 className={styles.cardTitle}>
@@ -629,7 +783,7 @@ export default function App() {
             </div>
           )}
 
-          {/* PREVIEW COLUMN (Shown on desktop in all tabs, and on mobile only when activeTab === 'preview') */}
+          {/* PREVIEW COLUMN (Always visible on desktop split, or in preview tab on mobile) */}
           {(!isMobile || activeTab === 'preview') && (
             <div>
               {/* TYPOGRAPHY TOOLBAR */}
@@ -641,7 +795,7 @@ export default function App() {
                     className={styles.select}
                     value={examData.fontFamily}
                     onChange={(e) => setExamData({ ...examData, fontFamily: e.target.value })}
-                    style={{ padding: '5px 8px', fontSize: '0.82rem' }}
+                    style={{ padding: '5px 8px', fontSize: '0.82rem', width: 'auto' }}
                   >
                     <option value="Amiri">الخط الأميري (التقليدي)</option>
                     <option value="Scheherazade New">خط المصاحف (شهربان)</option>
@@ -650,24 +804,38 @@ export default function App() {
                   </select>
                 </div>
 
+                {/* STEPPER FOR FONT SIZE (- 16.5px +) */}
                 <div className={styles.toolbarGroup}>
                   <span className={styles.toolbarLabel}>حجم الخط:</span>
-                  <input
-                    type="range"
-                    min="14"
-                    max="20"
-                    step="0.5"
-                    value={examData.fontSize}
-                    onChange={(e) => setExamData({ ...examData, fontSize: e.target.value })}
-                    style={{ width: '70px', accentColor: '#1b5e20' }}
-                  />
-                  <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1b5e20', minWidth: '35px' }}>
-                    {examData.fontSize}px
-                  </span>
+                  <div className={styles.stepperContainer}>
+                    <button
+                      type="button"
+                      className={styles.stepperBtn}
+                      onClick={() => setExamData(prev => ({
+                        ...prev,
+                        fontSize: String(Math.max(13, (parseFloat(prev.fontSize) - 0.5)).toFixed(1))
+                      }))}
+                      title="تصغير الخط"
+                    >
+                      -
+                    </button>
+                    <span className={styles.stepperValue}>{examData.fontSize}px</span>
+                    <button
+                      type="button"
+                      className={styles.stepperBtn}
+                      onClick={() => setExamData(prev => ({
+                        ...prev,
+                        fontSize: String(Math.min(22, (parseFloat(prev.fontSize) + 0.5)).toFixed(1))
+                      }))}
+                      title="تكبير الخط"
+                    >
+                      +
+                    </button>
+                  </div>
                 </div>
 
                 <div className={styles.toolbarGroup}>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1b5e20', background: '#e8f5e9', padding: '3px 8px', borderRadius: '6px' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1b5e20', background: '#e8f5e9', padding: '4px 10px', borderRadius: '6px' }}>
                     {pages.length} صفحات A4
                   </span>
                 </div>
@@ -688,32 +856,31 @@ export default function App() {
                     const isLastPage = pageIdx === pages.length - 1;
 
                     return (
-                      <div
-                        key={pageIdx}
-                        className={styles.pageMobileWrapper}
-                        style={isMobile ? {
-                          height: `${Math.round(1123 * mobileScale)}px`,
-                          width: '100%',
-                          overflow: 'hidden',
-                          display: 'flex',
-                          justifyContent: 'center',
-                          marginBottom: '14px'
-                        } : {}}
-                      >
-                        <div
-                          className={styles.a4Page}
-                          style={isMobile ? {
-                            transform: `scale(${mobileScale})`,
-                            transformOrigin: 'top center'
-                          } : {}}
-                        >
-                          <div className={styles.pageBorder}>
+                      <div key={pageIdx} className={styles.pageMobileWrapper}>
+                        <div className={styles.a4Page}>
+                          <div className={pageBorderClass}>
                             
-                            {/* EXACT HAWZAH HEADER DESIGN (MATCHING ATTACHED IMAGE) ON PAGE 1 */}
+                            {/* EXACT HAWZAH HEADER DESIGN MATCHING IMAGE 2 ON PAGE 1 */}
                             {isFirstPage && (
                               <>
-                                <div className={styles.examHeaderBox}>
-                                  {/* Left column: School, Subject, Stage, Semester */}
+                                <div className={headerBoxClass}>
+                                  
+                                  {/* 1. RIGHT COLUMN (RTL): AL-ABBAS HOLY SHRINE DETAILS */}
+                                  <div className={styles.headerRight}>
+                                    {(examData.centerHeader || []).map((line, lIdx) => (
+                                      <div key={lIdx}>{line}</div>
+                                    ))}
+                                  </div>
+
+                                  {/* 2. CENTER COLUMN: OFFICIAL EMBLEM + CLEAN TEXT UNDERNEATH */}
+                                  <div className={styles.headerCenter}>
+                                    <img src="/logo.png" alt="الشعار" className={styles.centerLogo} />
+                                    <div className={examData.titleStyle === 'framed' ? styles.centerTitleFramed : styles.centerTitleText}>
+                                      {examData.termTitle || 'امتحانات الفصل الأول'}
+                                    </div>
+                                  </div>
+
+                                  {/* 3. LEFT COLUMN (RTL): SCHOOL NAME, SUBJECT, STAGE, SEMESTER */}
                                   <div className={styles.headerLeft}>
                                     <div>{examData.school || 'المدرسة: فخر المخدرات'}</div>
                                     <div>المادة: {examData.subject}</div>
@@ -721,20 +888,6 @@ export default function App() {
                                     <div>{examData.semester}</div>
                                   </div>
 
-                                  {/* Center column: Official Emblem + Clean Text Underneath (NO BORDER BOX) */}
-                                  <div className={styles.headerCenter}>
-                                    <img src="/logo.png" alt="الشعار" className={styles.centerLogo} />
-                                    <div className={styles.centerTitleText}>
-                                      {examData.termTitle || 'امتحانات الفصل الأول'}
-                                    </div>
-                                  </div>
-
-                                  {/* Right column: Al-Abbas Holy Shrine details */}
-                                  <div className={styles.headerRight}>
-                                    {(examData.centerHeader || []).map((line, lIdx) => (
-                                      <div key={lIdx}>{line}</div>
-                                    ))}
-                                  </div>
                                 </div>
 
                                 {/* Scope/Notice Banner */}
@@ -799,39 +952,76 @@ export default function App() {
             className={`${styles.mobileTabBtn} ${activeTab === 'editor' ? styles.mobileTabBtnActive : ''}`}
             onClick={() => setActiveTab('editor')}
           >
-            <Edit3 size={18} />
+            <Edit3 size={17} />
             <span>النموذج</span>
           </button>
           <button
             className={`${styles.mobileTabBtn} ${activeTab === 'smartPaste' ? styles.mobileTabBtnActive : ''}`}
             onClick={() => setActiveTab('smartPaste')}
           >
-            <Sparkles size={18} />
+            <Sparkles size={17} />
             <span>استيراد</span>
+          </button>
+          <button
+            className={`${styles.mobileTabBtn} ${activeTab === 'settings' ? styles.mobileTabBtnActive : ''}`}
+            onClick={() => setActiveTab('settings')}
+          >
+            <Settings size={17} />
+            <span>الإعدادات</span>
           </button>
           <button
             className={`${styles.mobileTabBtn} ${activeTab === 'preview' ? styles.mobileTabBtnActive : ''}`}
             onClick={() => setActiveTab('preview')}
           >
-            <Eye size={18} />
+            <Eye size={17} />
             <span>المعاينة ({pages.length})</span>
           </button>
-          <button
-            className={`${styles.btn} ${styles.btnPrimary}`}
-            onClick={handlePrint}
-            style={{ padding: '8px 12px' }}
-            title="تحميل PDF"
-          >
-            <Printer size={16} />
-          </button>
-          <button
-            className={`${styles.btn} ${styles.btnSecondary}`}
-            onClick={handleExportWord}
-            style={{ padding: '8px 12px' }}
-            title="تحميل Word"
-          >
-            <Download size={16} />
-          </button>
+
+          {/* UNIFIED EXPORT BUTTON FOR MOBILE */}
+          <div className={styles.exportWrapper} ref={exportMenuRef}>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              style={{ padding: '8px 12px', fontSize: '0.8rem' }}
+            >
+              <Share2 size={15} />
+              <span>تصدير</span>
+            </button>
+            {showExportMenu && (
+              <div
+                className={styles.exportDropdown}
+                style={{
+                  top: 'auto',
+                  bottom: 'calc(100% + 8px)',
+                  left: 0,
+                  right: 'auto',
+                  minWidth: '220px'
+                }}
+              >
+                <button
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    handlePrint();
+                  }}
+                >
+                  <Printer size={16} color="#1b5e20" />
+                  <span>تحميل PDF (طباعة جاهزة)</span>
+                </button>
+                <div className={styles.dropdownDivider} />
+                <button
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    handleExportWord();
+                  }}
+                >
+                  <FileText size={16} color="#0284c7" />
+                  <span>تحميل مستند Word (.docx)</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
