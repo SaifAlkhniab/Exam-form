@@ -688,8 +688,25 @@ export default function App() {
                     const isLastPage = pageIdx === pages.length - 1;
 
                     return (
-                      <div key={pageIdx} className={styles.pageMobileWrapper}>
-                        <div className={styles.a4Page}>
+                      <div
+                        key={pageIdx}
+                        className={styles.pageMobileWrapper}
+                        style={isMobile ? {
+                          height: `${Math.round(1123 * mobileScale)}px`,
+                          width: '100%',
+                          overflow: 'hidden',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          marginBottom: '14px'
+                        } : {}}
+                      >
+                        <div
+                          className={styles.a4Page}
+                          style={isMobile ? {
+                            transform: `scale(${mobileScale})`,
+                            transformOrigin: 'top center'
+                          } : {}}
+                        >
                           <div className={styles.pageBorder}>
                             
                             {/* EXACT HAWZAH HEADER DESIGN (MATCHING ATTACHED IMAGE) ON PAGE 1 */}

@@ -674,7 +674,7 @@
     background: var(--primary-light);
   }
 
-  /* Auto-scale preview on mobile */
+  /* Fluid preview on mobile */
   .paperWrapper {
     padding: 10px 4px !important;
     border-radius: 8px;
@@ -686,13 +686,10 @@
     overflow: hidden !important;
     display: flex !important;
     justify-content: center !important;
-    height: calc((100vw - 20px) * 1.414) !important;
-    margin-bottom: 12px !important;
+    margin-bottom: 14px !important;
   }
 
   .a4Page {
-    transform: scale(calc((100vw - 20px) / 794)) !important;
-    transform-origin: top center !important;
     box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important;
     flex-shrink: 0 !important;
   }
