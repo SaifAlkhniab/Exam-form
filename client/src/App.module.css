@@ -1,13 +1,13 @@
-/* Pristine Light Mode Design & Mobile-First Styling */
+/* Pristine Light Mode & Mobile-First Styling with Multi-Page A4 Engine */
 :root {
   --primary: #1b5e20;
   --primary-hover: #144617;
   --primary-light: #e8f5e9;
   --accent: #b78103;
   --accent-light: #fff8e1;
-  --bg-page: #f8fafc;
+  --bg-page: #f1f5f9;
   --bg-card: #ffffff;
-  --text-main: #1e293b;
+  --text-main: #0f172a;
   --text-muted: #64748b;
   --border: #e2e8f0;
   --border-focus: #1b5e20;
@@ -16,7 +16,7 @@
   --radius: 10px;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  --shadow-lg: 0 10px 20px -3px rgba(0, 0, 0, 0.12);
 }
 
 .appContainer {
@@ -29,11 +29,11 @@
   direction: rtl;
 }
 
-/* Header */
+/* Top Navigation */
 .topNav {
   background: #ffffff;
   border-bottom: 1px solid var(--border);
-  padding: 12px 16px;
+  padding: 10px 16px;
   position: sticky;
   top: 0;
   z-index: 50;
@@ -47,6 +47,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  flex-wrap: wrap;
 }
 
 .brand {
@@ -56,20 +57,20 @@
 }
 
 .brandLogo {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   object-fit: contain;
 }
 
 .brandTitle {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 700;
   color: var(--primary);
   margin: 0;
 }
 
 .brandSubtitle {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   margin: 0;
 }
@@ -78,31 +79,33 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
-/* Tab Bar for Mobile & Desktop */
+/* Tab Bar */
 .tabBar {
   display: flex;
   background: #f1f5f9;
-  padding: 4px;
+  padding: 3px;
   border-radius: var(--radius);
-  gap: 4px;
+  gap: 3px;
 }
 
 .tabBtn {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 14px;
+  padding: 7px 12px;
   border: none;
   background: transparent;
   color: var(--text-muted);
   font-weight: 600;
-  font-size: 0.88rem;
-  border-radius: 8px;
+  font-size: 0.85rem;
+  border-radius: 7px;
   cursor: pointer;
   transition: all 0.2s ease;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .tabBtnActive {
@@ -111,20 +114,21 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Action Buttons */
+/* Buttons */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 14px;
-  font-size: 0.88rem;
+  padding: 7px 13px;
+  font-size: 0.85rem;
   font-weight: 600;
   border-radius: var(--radius);
   border: 1px solid transparent;
   cursor: pointer;
   transition: all 0.15s ease;
   font-family: inherit;
+  white-space: nowrap;
 }
 
 .btnPrimary {
@@ -149,9 +153,6 @@
   background: var(--accent);
   color: #ffffff;
 }
-.btnAccent:hover {
-  background: #966902;
-}
 
 .btnDanger {
   background: var(--danger-light);
@@ -173,9 +174,9 @@
   background: var(--primary-light);
 }
 
-/* Main Content Area */
+/* Layout */
 .mainLayout {
-  max-width: 1400px;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 16px;
   width: 100%;
@@ -186,16 +187,16 @@
 .desktopSplit {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 20px;
   align-items: start;
 }
 
 .singleColumn {
-  max-width: 850px;
+  max-width: 900px;
   margin: 0 auto;
 }
 
-/* Card Styling */
+/* Cards */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -209,13 +210,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 
 .cardTitle {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   color: var(--primary);
   display: flex;
@@ -224,11 +225,11 @@
   margin: 0;
 }
 
-/* Form Grid */
+/* Form Controls */
 .formGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
 }
 
 .inputGroup {
@@ -238,7 +239,7 @@
 }
 
 .label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -247,7 +248,7 @@
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   color: var(--text-main);
   background: #ffffff;
   font-family: inherit;
@@ -266,27 +267,19 @@
   resize: vertical;
 }
 
-/* Smart Paste Box */
-.pasteBox {
-  background: #f8fafc;
-  border: 2px dashed #cbd5e1;
-  border-radius: var(--radius);
-  padding: 14px;
-  margin-bottom: 16px;
-}
-
+/* Smart Import Box */
 .pasteTextarea {
   width: 100%;
-  min-height: 180px;
-  padding: 10px;
+  min-height: 200px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
   font-family: inherit;
   font-size: 0.88rem;
-  line-height: 1.5;
+  line-height: 1.6;
   box-sizing: border-box;
-  background: #ffffff;
-  margin-bottom: 10px;
+  background: #f8fafc;
+  margin-bottom: 12px;
 }
 
 /* Questions Editor */
@@ -294,8 +287,8 @@
   background: #ffffff;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px;
-  margin-bottom: 14px;
+  padding: 12px;
+  margin-bottom: 12px;
   position: relative;
   transition: box-shadow 0.2s;
 }
@@ -309,25 +302,25 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .questionNumInput {
-  width: 70px;
+  width: 65px;
   font-weight: 700;
   color: var(--primary);
   text-align: center;
 }
 
 .questionMarksInput {
-  width: 90px;
+  width: 85px;
   text-align: center;
 }
 
 .branchRow {
   background: #f8fafc;
   border-right: 3px solid var(--primary);
-  padding: 8px 12px;
+  padding: 8px 10px;
   border-radius: 0 6px 6px 0;
   margin-top: 8px;
   display: flex;
@@ -343,92 +336,117 @@
 }
 
 .branchLabelInput {
-  width: 50px;
+  width: 45px;
   text-align: center;
   font-weight: bold;
 }
 
-/* Sticky Mobile Bottom Bar */
-.mobileStickyBar {
-  display: none;
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #ffffff;
-  border-top: 1px solid var(--border);
-  padding: 10px 16px;
-  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
-  z-index: 40;
-}
-
-@media (max-width: 900px) {
-  .desktopSplit {
-    grid-template-columns: 1fr;
-  }
-  .mobileStickyBar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-  }
-  .mainLayout {
-    padding-bottom: 70px;
-  }
+/* Page Break Badge */
+.pageBreakBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: #fef3c7;
+  color: #92400e;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px dashed #d97706;
 }
 
 /* ========================================================
-   EXAM PAPER PREVIEW & PRINT STYLING
+   PREVIEW TOOLBAR & MULTI-PAGE CONTAINER
    ======================================================== */
+.previewToolbar {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  box-shadow: var(--shadow-sm);
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toolbarLabel {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .paperWrapper {
-  background: #64748b;
-  padding: 20px;
+  background: #475569;
+  padding: 24px 16px;
   border-radius: var(--radius);
   overflow-x: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 24px;
 }
 
-.examPaper {
+/* Scalable Preview Box */
+.scaledContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  transition: transform 0.2s ease;
+}
+
+/* Distinct A4 Sheet */
+.a4Page {
   background: #ffffff;
   width: 210mm;
-  min-height: 297mm;
-  padding: 12mm 15mm;
+  height: 297mm;
+  padding: 10mm;
   box-sizing: border-box;
   box-shadow: var(--shadow-lg);
   position: relative;
-  font-family: 'Amiri', 'Traditional Arabic', serif;
   color: #000000;
-  line-height: 1.6;
+  display: flex;
+  flex-direction: column;
+  page-break-after: always;
+  break-after: page;
 }
 
-/* Official Outer Border */
-.paperBorder {
+/* Outer Border on each page */
+.pageBorder {
   border: 2px solid #000000;
-  min-height: calc(297mm - 24mm);
+  height: 100%;
   padding: 8mm 10mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
 }
 
-/* Header Box */
+/* Header Box (On Page 1) */
 .examHeaderBox {
   border: 1.5px solid #000000;
-  padding: 8px 12px;
+  padding: 6px 12px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
 .headerRight {
   text-align: right;
   font-size: 0.95rem;
-  line-height: 1.4;
+  line-height: 1.35;
   font-weight: 700;
 }
 
@@ -437,11 +455,11 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .centerLogo {
-  height: 52px;
+  height: 48px;
   width: auto;
   object-fit: contain;
 }
@@ -450,7 +468,7 @@
   border: 1px solid #000000;
   padding: 2px 14px;
   border-radius: 4px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -459,7 +477,7 @@
   text-align: left;
   direction: rtl;
   font-size: 0.95rem;
-  line-height: 1.4;
+  line-height: 1.35;
   font-weight: 700;
 }
 
@@ -468,62 +486,99 @@
   text-align: center;
   font-weight: 700;
   font-size: 1.05rem;
-  margin: 8px 0 16px 0;
-  padding-bottom: 4px;
+  margin: 6px 0 12px 0;
+  padding-bottom: 2px;
 }
 
 /* Questions in Paper */
 .paperQuestions {
   flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .paperQuestionItem {
-  margin-bottom: 14px;
-  page-break-inside: avoid;
-  break-inside: avoid;
+  margin-bottom: 8px;
 }
 
 .paperQuestionTitle {
-  font-size: 1.15rem;
   font-weight: 700;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 4px;
+  line-height: 1.5;
 }
 
 .paperBranchItem {
-  padding-right: 20px;
-  font-size: 1.08rem;
-  margin-bottom: 6px;
+  padding-right: 18px;
+  margin-bottom: 4px;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   white-space: pre-wrap;
-  line-height: 1.6;
+  line-height: 1.5;
 }
 
 .paperMarks {
   font-weight: 700;
-  font-size: 1rem;
   white-space: nowrap;
   margin-right: 8px;
 }
 
-/* Footer Teacher Name */
+/* Pinned Footer for Teacher Name at the bottom */
 .paperFooter {
   text-align: center;
   font-weight: 700;
-  font-size: 1.15rem;
   margin-top: auto;
-  padding-top: 16px;
+  padding-top: 14px;
+}
+
+/* Sticky Bottom Bar for Mobile */
+.mobileStickyBar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid var(--border);
+  padding: 8px 12px;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+  z-index: 40;
+}
+
+@media (max-width: 960px) {
+  .desktopSplit {
+    grid-template-columns: 1fr;
+  }
+  .mobileStickyBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+  .mainLayout {
+    padding-bottom: 65px;
+  }
+  .topActions {
+    width: 100%;
+    justify-content: space-between;
+    margin-top: 6px;
+  }
 }
 
 /* ========================================================
    PRINT STYLES FOR NATIVE A4 VECTOR PDF
    ======================================================== */
 @media print {
-  body {
+  @page {
+    size: A4 portrait;
+    margin: 8mm;
+  }
+
+  html, body {
     background: #ffffff !important;
     margin: 0 !important;
     padding: 0 !important;
@@ -534,7 +589,7 @@
   .card,
   .tabBar,
   .btn,
-  .pasteBox,
+  .previewToolbar,
   .noPrint {
     display: none !important;
   }
@@ -553,24 +608,38 @@
     background: transparent !important;
     padding: 0 !important;
     border-radius: 0 !important;
+    overflow: visible !important;
+    display: block !important;
   }
 
-  .examPaper {
+  .scaledContainer {
+    transform: none !important;
     width: 100% !important;
-    min-height: auto !important;
+    display: block !important;
+  }
+
+  .a4Page {
+    width: 100% !important;
+    height: 280mm !important;
+    max-height: 280mm !important;
+    margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
-    page-break-after: auto;
+    page-break-after: always !important;
+    break-after: page !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
-  .paperBorder {
+  .pageBorder {
     border: 2px solid #000000 !important;
-    min-height: 275mm !important;
+    height: 100% !important;
     padding: 8mm 10mm !important;
+    box-sizing: border-box !important;
   }
 
-  @page {
-    size: A4 portrait;
-    margin: 10mm;
+  .paperFooter {
+    margin-top: auto !important;
+    padding-top: 16px !important;
   }
 }

@@ -1,18 +1,17 @@
 /**
  * Smart Arabic Exam Parser
- * Converts raw WhatsApp text into structured exam data.
+ * Converts raw exam text (from WhatsApp, Telegram, Word, etc.) into structured exam data.
  */
 
-export function parseWhatsAppExamText(rawText) {
+export function parseExamText(rawText) {
   if (!rawText || !rawText.trim()) {
     return null;
   }
 
   const text = rawText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
 
   const result = {
-    school: 'مدرسة: فخر المخدرات',
+    school: 'المدرسة: فخر المخدرات',
     subject: 'عقائد',
     stage: 'تمهيدي',
     semester: 'الفصل: الأول',
@@ -29,47 +28,52 @@ export function parseWhatsAppExamText(rawText) {
     questions: []
   };
 
-  // 1. Extract metadata using regex patterns
+  // 1. Extract metadata
   // Subject
-  const subjectMatch = text.match(/المادة\s*[:\-\/]\s*([^\n]+)/);
+  const subjectMatch = text.match(/(?:المادة)\s*[:\-\/]\s*([^\n\r]+)/);
   if (subjectMatch) result.subject = subjectMatch[1].trim();
 
   // Stage
-  const stageMatch = text.match(/المرحلة\s*[:\-\/]\s*([^\n]+)/);
+  const stageMatch = text.match(/(?:المرحلة)\s*[:\-\/]\s*([^\n\r]+)/);
   if (stageMatch) result.stage = stageMatch[1].trim();
 
-  // Term / Round / Semester
-  const roundMatch = text.match(/(?:للدور|الدور|الفصل)\s*[:\-\/]\s*([^\n]+)/);
+  // Semester / Round
+  const roundMatch = text.match(/(?:للدور|الدور|الفصل)\s*[:\-\/]\s*([^\n\r]+)/);
   if (roundMatch) {
     const val = roundMatch[1].trim();
     result.semester = val.startsWith('الدور') || val.startsWith('الفصل') ? val : `الفصل: ${val}`;
   }
 
-  // Term title banner (e.g. أسئلة الفصل الأول -> امتحانات الفصل الأول)
-  const titleMatch = text.match(/(?:أسئلة|امتحانات)\s+([^\n]+)/);
+  // Term Title Banner (Strict single line, avoid eating question text)
+  const titleMatch = text.match(/(?:^|\n)\s*(أسئلة\s+[^\n\r/:]+|امتحانات\s+[^\n\r/:]+)/);
   if (titleMatch) {
-    const rawTitle = titleMatch[0].trim();
-    result.termTitle = rawTitle.startsWith('امتحانات') ? rawTitle : rawTitle.replace('أسئلة', 'امتحانات');
+    let rawTitle = titleMatch[1].trim();
+    if (rawTitle.startsWith('أسئلة')) {
+      rawTitle = rawTitle.replace('أسئلة', 'امتحانات');
+    }
+    result.termTitle = rawTitle;
   }
 
-  // School name if mentioned
-  const schoolMatch = text.match(/(?:المدرسة|مدرسة)\s*[:\-\/]\s*([^\n]+)/);
-  if (schoolMatch) result.school = schoolMatch[1].trim();
+  // School name if present
+  const schoolMatch = text.match(/(?:المدرسة|مدرسة)\s*[:\-\/]\s*([^\n\r]+)/);
+  if (schoolMatch) {
+    const sName = schoolMatch[1].trim();
+    result.school = sName.startsWith('المدرسة') || sName.startsWith('مدرسة') ? sName : `المدرسة: ${sName}`;
+  }
 
-  // Notice / Scope (e.g. تحديد المادة الداخلة...)
-  const noticeMatch = text.match(/(تحديد المادة الداخلة[^\n]+|ملاحظة\s*:[^\n]+)/);
+  // Notice / Scope (تحديد المادة الداخلة...)
+  const noticeMatch = text.match(/(?:^|\n)\s*(تحديد المادة الداخلة[^\n\r]+|ملاحظة\s*:[^\n\r]+)/);
   if (noticeMatch) result.notice = noticeMatch[1].trim();
 
   // Teacher name
-  const teacherMatch = text.match(/(?:أستاذة?|المعلمة?|المدرس)\s*المادة\s*[:\-\/]\s*([^\n]+)/);
+  const teacherMatch = text.match(/(?:أستاذة?|المعلمة?|المدرس)\s*المادة\s*[:\-\/]\s*([^\n\r]+)/);
   if (teacherMatch) {
     result.teacher = teacherMatch[1].trim().replace(/[.\s]+$/, '');
   }
 
   // 2. Extract Questions
-  // Question headers usually start with: س١, س 1, س1/, السؤال الأول, etc.
+  // Question Header Pattern: س١/, س 1, س1:, السؤال الأول, etc.
   const questionHeaderPattern = /(?:^|\n)\s*(س\s*[\d\u0660-\u0669]+[\/:\-\s]*|السؤال\s+[\u0621-\u064A\d\u0660-\u0669]+[\/:\-\s]*)/g;
-  
   const questionMatches = [...text.matchAll(questionHeaderPattern)];
 
   if (questionMatches.length > 0) {
@@ -78,32 +82,31 @@ export function parseWhatsAppExamText(rawText) {
       const startIndex = currentMatch.index + currentMatch[0].length;
       const endIndex = (i + 1 < questionMatches.length) ? questionMatches[i + 1].index : text.length;
 
-      let qNumRaw = currentMatch[1].trim();
-      // Clean question prefix: e.g. "س١/" -> "س١"
-      let qNum = qNumRaw.replace(/[\/:\-\s]+$/, '').trim();
-
+      let qNum = currentMatch[1].trim().replace(/[\/:\-\s]+$/, '').trim();
       let qBody = text.substring(startIndex, endIndex).trim();
 
-      // If this is the last question, strip teacher name if present at the end
+      // If last question, remove teacher name from the end
       if (i === questionMatches.length - 1 && result.teacher) {
         qBody = qBody.replace(new RegExp(`(?:أستاذة?|المعلمة?|المدرس)\\s*المادة\\s*[:\\-\\/]?\\s*${result.teacher}[.\\s]*`, 'g'), '').trim();
       }
 
-      // Check for marks in the question body, e.g. (٢٠ د), (١٠ د), (د١٠), (20 درجة)
+      // Extract overall marks e.g. (٢٠ د), (١٠ د), (د١٠)
       let marks = '';
       const marksMatch = qBody.match(/\(([\d\u0660-\u0669]+\s*(?:د|درجة|درجات)|(?:د|درجة|درجات)\s*[\d\u0660-\u0669]+)\)/);
       if (marksMatch) {
         marks = marksMatch[0];
-        // Remove mark from question body to display it neatly in the dedicated mark badge
         qBody = qBody.replace(marksMatch[0], '').trim();
       }
 
-      // Detect sub-branches (e.g. أ /, ب /, ج / or أ -, ب -)
+      // Check for letter sub-branches: أ/, ب/, ج/ or أ -, ب - or أ:
       const branchPattern = /(?:^|\n)\s*([أ-ي])\s*[\/:\-]\s*/g;
       const branchMatches = [...qBody.matchAll(branchPattern)];
 
       const branches = [];
+      let mainText = qBody;
+
       if (branchMatches.length > 0) {
+        mainText = qBody.substring(0, branchMatches[0].index).trim();
         for (let b = 0; b < branchMatches.length; b++) {
           const bMatch = branchMatches[b];
           const bStart = bMatch.index + bMatch[0].length;
@@ -111,7 +114,7 @@ export function parseWhatsAppExamText(rawText) {
           const bLabel = bMatch[1].trim();
           let bContent = qBody.substring(bStart, bEnd).trim();
 
-          // Check if branch has its own mark
+          // Check if this branch has its own mark
           let bMark = '';
           const bMarkMatch = bContent.match(/\(([\d\u0660-\u0669]+\s*(?:د|درجة|درجات)|(?:د|درجة|درجات)\s*[\d\u0660-\u0669]+)\)/);
           if (bMarkMatch) {
@@ -120,10 +123,26 @@ export function parseWhatsAppExamText(rawText) {
           }
 
           branches.push({
-            id: `b_${Date.now()}_${b}`,
+            id: `b_${Date.now()}_${i}_${b}`,
             label: bLabel,
             content: bContent,
             marks: bMark
+          });
+        }
+      } else {
+        // If no letter branches, check if it's a list of numbered items (1-, 2-, ...)
+        // Keep main guidance clean and separate numbered points
+        const numItemPattern = /(?:^|\n)\s*([\d\u0660-\u0669]+[\-.\/]\s*[^\n\r]+)/g;
+        const numItems = [...qBody.matchAll(numItemPattern)];
+        if (numItems.length > 1) {
+          const firstItemIdx = numItems[0].index;
+          mainText = qBody.substring(0, firstItemIdx).trim();
+          const itemsText = qBody.substring(firstItemIdx).trim();
+          branches.push({
+            id: `b_${Date.now()}_${i}_0`,
+            label: '',
+            content: itemsText,
+            marks: ''
           });
         }
       }
@@ -131,8 +150,9 @@ export function parseWhatsAppExamText(rawText) {
       result.questions.push({
         id: `q_${Date.now()}_${i}`,
         number: qNum || `س${i + 1}`,
-        mainText: branchMatches.length > 0 ? qBody.substring(0, branchMatches[0].index).trim() : qBody,
+        mainText: mainText,
         marks: marks,
+        pageBreakBefore: i === 4, // Intelligently place page break before Q5 if needed
         branches: branches
       });
     }
@@ -141,11 +161,8 @@ export function parseWhatsAppExamText(rawText) {
   return result;
 }
 
-/**
- * Default sample data loaded upon startup
- */
 export const defaultExamData = {
-  school: 'مدرسة: فخر المخدرات',
+  school: 'المدرسة: فخر المخدرات',
   subject: 'عقائد',
   stage: 'تمهيدي',
   semester: 'الفصل: الأول',
@@ -157,19 +174,23 @@ export const defaultExamData = {
     'الامتحانات الفصلية',
     'لعام 1448 هـ'
   ],
-  notice: 'المادة الداخلة في الامتحان من بداية الكتاب إلى د١١غير داخل',
+  notice: 'تحديد المادة الداخلة في الامتحان من بداية الكتاب إلى د١١غير داخل',
   teacher: 'انتظار شعلان عبد الرزاق',
+  fontFamily: 'Amiri',
+  fontSize: '17', // in px
+  lineHeight: '1.6',
   questions: [
     {
       id: 'q_1',
       number: 'س١',
-      mainText: 'أ : عرفي خمسة مما يأتي.',
-      marks: '(١٠ د)',
+      mainText: '',
+      marks: '',
+      pageBreakBefore: false,
       branches: [
         {
           id: 'b_1_1',
           label: 'أ',
-          content: 'عرفي خمسة مما يأتي:\n١- الصفات السلبية  ٢- الصفات الثبوتية الذاتية.  ٣- فروع الدين.  ٤- العدل\n٥- أصول الدين  ٦- الصفات الفعلية.  ٧- التوحيد في العبادة.',
+          content: 'عرفي خمسة مما يأتي:\n١- الصفات السلبية   ٢- الصفات الثبوتية الذاتية.   ٣- فروع الدين.   ٤- العدل\n٥- أصول الدين   ٦- الصفات الفعلية.   ٧- التوحيد في العبادة.',
           marks: ''
         },
         {
@@ -185,6 +206,7 @@ export const defaultExamData = {
       number: 'س٢',
       mainText: '',
       marks: '(٢٠ د)',
+      pageBreakBefore: false,
       branches: [
         {
           id: 'b_2_1',
@@ -205,6 +227,7 @@ export const defaultExamData = {
       number: 'س٣',
       mainText: 'اجيبي عن الفرعين فقط مما يأتي.',
       marks: '(٢٠ د)',
+      pageBreakBefore: false,
       branches: [
         {
           id: 'b_3_1',
@@ -231,6 +254,7 @@ export const defaultExamData = {
       number: 'س٤',
       mainText: 'اعطي دليل نقلي لخمسة مما يلي :',
       marks: '(٢٠ د)',
+      pageBreakBefore: false,
       branches: [
         {
           id: 'b_4_1',
@@ -245,6 +269,7 @@ export const defaultExamData = {
       number: 'س٥',
       mainText: 'عددي بنقطتين مما يلي.؟',
       marks: '(٢٠ د)',
+      pageBreakBefore: true, // Starts Page 2 cleanly
       branches: [
         {
           id: 'b_5_1',
@@ -259,6 +284,7 @@ export const defaultExamData = {
       number: 'س٦',
       mainText: 'املي الفراغات التالية.',
       marks: '(١٠ د)',
+      pageBreakBefore: false,
       branches: [
         {
           id: 'b_6_1',

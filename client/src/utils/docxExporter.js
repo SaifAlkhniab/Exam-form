@@ -9,12 +9,12 @@ import {
   WidthType,
   AlignmentType,
   BorderStyle,
-  ImageRun
+  ImageRun,
+  PageBreak
 } from 'docx';
 import { saveAs } from 'file-saver';
 
 export async function exportToDocx(examData) {
-  // Fetch logo as ArrayBuffer
   let logoBuffer = null;
   try {
     const res = await fetch('/logo.png');
@@ -25,7 +25,9 @@ export async function exportToDocx(examData) {
     console.warn('Could not load logo for DOCX:', err);
   }
 
-  // Header Table (3 columns: Left metadata, Center Logo + Title, Right Kafeel Org)
+  const selectedFont = examData.fontFamily || 'Traditional Arabic';
+  const baseSizePt = Math.round((parseFloat(examData.fontSize || 16.5) * 1.33)); // convert to half-points
+
   const cellBorderNone = {
     top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
     bottom: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
@@ -37,22 +39,22 @@ export async function exportToDocx(examData) {
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
-      children: [new TextRun({ text: 'العتبة العباسية المقدسة', bold: true, size: 22, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: 'العتبة العباسية المقدسة', bold: true, size: 22, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
-      children: [new TextRun({ text: 'شعبة مدارس الكفيل الدينية النسوية', bold: true, size: 20, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: 'شعبة مدارس الكفيل الدينية النسوية', bold: true, size: 20, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
-      children: [new TextRun({ text: 'الامتحانات الفصلية', size: 18, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: 'الامتحانات الفصلية', size: 18, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
-      children: [new TextRun({ text: `لعام ${examData.year || '1448 هـ'}`, size: 18, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: `لعام ${examData.year || '1448 هـ'}`, size: 18, font: selectedFont })]
     })
   ];
 
@@ -64,10 +66,7 @@ export async function exportToDocx(examData) {
         children: [
           new ImageRun({
             data: logoBuffer,
-            transformation: {
-              width: 70,
-              height: 52
-            }
+            transformation: { width: 68, height: 50 }
           })
         ]
       })
@@ -82,7 +81,7 @@ export async function exportToDocx(examData) {
           text: examData.termTitle || 'امتحانات الفصل الأول',
           bold: true,
           size: 22,
-          font: 'Traditional Arabic'
+          font: selectedFont
         })
       ]
     })
@@ -92,22 +91,22 @@ export async function exportToDocx(examData) {
     new Paragraph({
       alignment: AlignmentType.LEFT,
       bidirectional: true,
-      children: [new TextRun({ text: examData.school || 'المدرسة: فخر المخدرات', bold: true, size: 20, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: examData.school || 'المدرسة: فخر المخدرات', bold: true, size: 20, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.LEFT,
       bidirectional: true,
-      children: [new TextRun({ text: `المادة: ${examData.subject || ''}`, bold: true, size: 20, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: `المادة: ${examData.subject || ''}`, bold: true, size: 20, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.LEFT,
       bidirectional: true,
-      children: [new TextRun({ text: `المرحلة: ${examData.stage || ''}`, bold: true, size: 20, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: `المرحلة: ${examData.stage || ''}`, bold: true, size: 20, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.LEFT,
       bidirectional: true,
-      children: [new TextRun({ text: examData.semester || 'الفصل: الأول', bold: true, size: 20, font: 'Traditional Arabic' })]
+      children: [new TextRun({ text: examData.semester || 'الفصل: الأول', bold: true, size: 20, font: selectedFont })]
     })
   ];
 
@@ -150,29 +149,36 @@ export async function exportToDocx(examData) {
       new Paragraph({
         alignment: AlignmentType.CENTER,
         bidirectional: true,
-        spacing: { before: 200, after: 200 },
+        spacing: { before: 180, after: 180 },
         children: [
           new TextRun({
             text: examData.notice,
             bold: true,
             size: 22,
-            font: 'Traditional Arabic'
+            font: selectedFont
           })
         ]
       })
     );
-  } else {
-    bodyChildren.push(new Paragraph({ spacing: { after: 150 } }));
   }
 
   // Questions
   (examData.questions || []).forEach((q, idx) => {
+    // Check for page break
+    if (q.pageBreakBefore && idx > 0) {
+      bodyChildren.push(
+        new Paragraph({
+          children: [new PageBreak()]
+        })
+      );
+    }
+
     const qRuns = [
       new TextRun({
         text: `${q.number || `س${idx + 1}`}/ `,
         bold: true,
-        size: 24,
-        font: 'Traditional Arabic'
+        size: baseSizePt + 2,
+        font: selectedFont
       })
     ];
 
@@ -181,8 +187,8 @@ export async function exportToDocx(examData) {
         new TextRun({
           text: `${q.mainText} `,
           bold: true,
-          size: 22,
-          font: 'Traditional Arabic'
+          size: baseSizePt,
+          font: selectedFont
         })
       );
     }
@@ -192,8 +198,8 @@ export async function exportToDocx(examData) {
         new TextRun({
           text: ` ${q.marks}`,
           bold: true,
-          size: 20,
-          font: 'Traditional Arabic'
+          size: baseSizePt - 2,
+          font: selectedFont
         })
       );
     }
@@ -202,7 +208,7 @@ export async function exportToDocx(examData) {
       new Paragraph({
         alignment: AlignmentType.RIGHT,
         bidirectional: true,
-        spacing: { before: 180, after: 80 },
+        spacing: { before: 160, after: 60 },
         children: qRuns
       })
     );
@@ -216,8 +222,8 @@ export async function exportToDocx(examData) {
             new TextRun({
               text: `${b.label}/ `,
               bold: true,
-              size: 22,
-              font: 'Traditional Arabic'
+              size: baseSizePt,
+              font: selectedFont
             })
           );
         }
@@ -227,8 +233,8 @@ export async function exportToDocx(examData) {
           bRuns.push(
             new TextRun({
               text: line,
-              size: 22,
-              font: 'Traditional Arabic'
+              size: baseSizePt,
+              font: selectedFont
             })
           );
           if (lIdx < lines.length - 1) {
@@ -241,8 +247,8 @@ export async function exportToDocx(examData) {
             new TextRun({
               text: ` ${b.marks}`,
               bold: true,
-              size: 20,
-              font: 'Traditional Arabic'
+              size: baseSizePt - 2,
+              font: selectedFont
             })
           );
         }
@@ -252,7 +258,7 @@ export async function exportToDocx(examData) {
             alignment: AlignmentType.RIGHT,
             bidirectional: true,
             indent: { right: 360 },
-            spacing: { before: 60, after: 60 },
+            spacing: { before: 50, after: 50 },
             children: bRuns
           })
         );
@@ -266,13 +272,13 @@ export async function exportToDocx(examData) {
       new Paragraph({
         alignment: AlignmentType.CENTER,
         bidirectional: true,
-        spacing: { before: 400 },
+        spacing: { before: 350 },
         children: [
           new TextRun({
             text: `أستاذة المادة : ${examData.teacher}`,
             bold: true,
             size: 22,
-            font: 'Traditional Arabic'
+            font: selectedFont
           })
         ]
       })
@@ -284,12 +290,7 @@ export async function exportToDocx(examData) {
       {
         properties: {
           page: {
-            margin: {
-              top: 720,
-              bottom: 720,
-              left: 720,
-              right: 720
-            },
+            margin: { top: 720, bottom: 720, left: 720, right: 720 },
             borders: {
               pageBorders: {
                 top: { style: BorderStyle.SINGLE, size: 12, color: '000000' },
