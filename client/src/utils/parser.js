@@ -1,6 +1,6 @@
 /**
- * Smart Arabic Exam Parser
- * Converts raw exam text (from WhatsApp, Telegram, Word, etc.) into structured exam data.
+ * Smart Arabic Exam Parser & Auto-Paginator
+ * Converts raw exam text into structured, auto-paginated exam data.
  */
 
 export function parseExamText(rawText) {
@@ -12,8 +12,8 @@ export function parseExamText(rawText) {
 
   const result = {
     school: 'المدرسة: فخر المخدرات',
-    subject: 'عقائد',
-    stage: 'تمهيدي',
+    subject: 'علوم قرآن',
+    stage: 'الرابعة',
     semester: 'الفصل: الأول',
     termTitle: 'امتحانات الفصل الأول',
     year: '1448 هـ',
@@ -38,20 +38,21 @@ export function parseExamText(rawText) {
   if (stageMatch) result.stage = stageMatch[1].trim();
 
   // Semester / Round
-  const roundMatch = text.match(/(?:للدور|الدور|الفصل)\s*[:\-\/]\s*([^\n\r]+)/);
+  const roundMatch = text.match(/(?:للدور|الدور|الفصل|أسئلة\s+امتحان)\s*[:\-\/]\s*([^\n\r]+)/);
   if (roundMatch) {
     const val = roundMatch[1].trim();
     result.semester = val.startsWith('الدور') || val.startsWith('الفصل') ? val : `الفصل: ${val}`;
   }
 
-  // Term Title Banner (Strict single line, avoid eating question text)
-  const titleMatch = text.match(/(?:^|\n)\s*(أسئلة\s+[^\n\r/:]+|امتحانات\s+[^\n\r/:]+)/);
+  // Term Title Banner (Strict single line, clean up to avoid "امتحانات امتحان")
+  const titleMatch = text.match(/(?:^|\n)\s*(أسئلة\s+امتحان\s*[:\-\/]?\s*([^\n\r]+)|أسئلة\s+([^\n\r/:]+)|امتحانات\s+([^\n\r/:]+))/);
   if (titleMatch) {
-    let rawTitle = titleMatch[1].trim();
-    if (rawTitle.startsWith('أسئلة')) {
-      rawTitle = rawTitle.replace('أسئلة', 'امتحانات');
+    let tVal = (titleMatch[2] || titleMatch[3] || titleMatch[4] || '').trim();
+    if (tVal.startsWith('الفصل') || tVal.startsWith('الدور')) {
+      result.termTitle = `امتحانات ${tVal}`;
+    } else if (tVal) {
+      result.termTitle = tVal.startsWith('امتحانات') ? tVal : `امتحانات ${tVal}`;
     }
-    result.termTitle = rawTitle;
   }
 
   // School name if present
@@ -61,8 +62,8 @@ export function parseExamText(rawText) {
     result.school = sName.startsWith('المدرسة') || sName.startsWith('مدرسة') ? sName : `المدرسة: ${sName}`;
   }
 
-  // Notice / Scope (تحديد المادة الداخلة...)
-  const noticeMatch = text.match(/(?:^|\n)\s*(تحديد المادة الداخلة[^\n\r]+|ملاحظة\s*:[^\n\r]+)/);
+  // Notice / Scope (Matches "المادة الداخلة في الامتحان" or "المادة الداخلة بالامتحان" or "تحديد المادة...")
+  const noticeMatch = text.match(/(?:^|\n)\s*((?:تحديد\s+)?المادة\s+الداخلة\s*(?:في|بـ?|بالـ?)?الامتحان\s*[:\-\/]?\s*[^\n\r]+|ملاحظة\s*:[^\n\r]+)/);
   if (noticeMatch) result.notice = noticeMatch[1].trim();
 
   // Teacher name
@@ -72,11 +73,12 @@ export function parseExamText(rawText) {
   }
 
   // 2. Extract Questions
-  // Question Header Pattern: س١/, س 1, س1:, السؤال الأول, etc.
   const questionHeaderPattern = /(?:^|\n)\s*(س\s*[\d\u0660-\u0669]+[\/:\-\s]*|السؤال\s+[\u0621-\u064A\d\u0660-\u0669]+[\/:\-\s]*)/g;
   const questionMatches = [...text.matchAll(questionHeaderPattern)];
 
   if (questionMatches.length > 0) {
+    const rawQuestions = [];
+
     for (let i = 0; i < questionMatches.length; i++) {
       const currentMatch = questionMatches[i];
       const startIndex = currentMatch.index + currentMatch[0].length;
@@ -90,7 +92,7 @@ export function parseExamText(rawText) {
         qBody = qBody.replace(new RegExp(`(?:أستاذة?|المعلمة?|المدرس)\\s*المادة\\s*[:\\-\\/]?\\s*${result.teacher}[.\\s]*`, 'g'), '').trim();
       }
 
-      // Extract overall marks e.g. (٢٠ د), (١٠ د), (د١٠)
+      // Extract overall marks e.g. (٢٠ د), (١٥ د), (١٠ د), (د١٠)
       let marks = '';
       const marksMatch = qBody.match(/\(([\d\u0660-\u0669]+\s*(?:د|درجة|درجات)|(?:د|درجة|درجات)\s*[\d\u0660-\u0669]+)\)/);
       if (marksMatch) {
@@ -98,8 +100,9 @@ export function parseExamText(rawText) {
         qBody = qBody.replace(marksMatch[0], '').trim();
       }
 
-      // Check for letter sub-branches: أ/, ب/, ج/ or أ -, ب - or أ:
-      const branchPattern = /(?:^|\n)\s*([أ-ي])\s*[\/:\-]\s*/g;
+      // Check for top-level letter branches (أ /, ب/, ج/ or أ:, ب:, ج:)
+      // Note: we require slash or colon so we don't accidentally match multiple-choice options like "أ - القرن الأول"
+      const branchPattern = /(?:^|\n)\s*([أ-ي])\s*[\/:]\s*/g;
       const branchMatches = [...qBody.matchAll(branchPattern)];
 
       const branches = [];
@@ -114,7 +117,7 @@ export function parseExamText(rawText) {
           const bLabel = bMatch[1].trim();
           let bContent = qBody.substring(bStart, bEnd).trim();
 
-          // Check if this branch has its own mark
+          // Check if branch has its own mark
           let bMark = '';
           const bMarkMatch = bContent.match(/\(([\d\u0660-\u0669]+\s*(?:د|درجة|درجات)|(?:د|درجة|درجات)\s*[\d\u0660-\u0669]+)\)/);
           if (bMarkMatch) {
@@ -131,7 +134,6 @@ export function parseExamText(rawText) {
         }
       } else {
         // If no letter branches, check if it's a list of numbered items (1-, 2-, ...)
-        // Keep main guidance clean and separate numbered points
         const numItemPattern = /(?:^|\n)\s*([\d\u0660-\u0669]+[\-.\/]\s*[^\n\r]+)/g;
         const numItems = [...qBody.matchAll(numItemPattern)];
         if (numItems.length > 1) {
@@ -147,15 +149,49 @@ export function parseExamText(rawText) {
         }
       }
 
-      result.questions.push({
+      rawQuestions.push({
         id: `q_${Date.now()}_${i}`,
         number: qNum || `س${i + 1}`,
         mainText: mainText,
         marks: marks,
-        pageBreakBefore: i === 4, // Intelligently place page break before Q5 if needed
+        pageBreakBefore: false,
         branches: branches
       });
     }
+
+    // 3. Smart Automatic Pagination Engine
+    // Page 1 capacity: ~18 units (has header box & notice)
+    // Page 2+ capacity: ~23 units
+    let currentWeight = 0;
+    let isPage1 = true;
+
+    rawQuestions.forEach((q, idx) => {
+      // Calculate question visual weight (estimated height in lines)
+      let w = 2.0; // question title & spacing
+      if (q.mainText) {
+        w += q.mainText.split('\n').length * 1.0;
+      }
+      (q.branches || []).forEach(b => {
+        w += 1.0; // branch label
+        const lines = (b.content || '').split('\n');
+        lines.forEach(l => {
+          w += Math.max(1.0, l.length / 50.0);
+        });
+      });
+
+      const maxCapacity = isPage1 ? 18.0 : 23.0;
+
+      if (idx > 0 && currentWeight + w > maxCapacity) {
+        // Break to new page
+        q.pageBreakBefore = true;
+        currentWeight = w;
+        isPage1 = false;
+      } else {
+        currentWeight += w;
+      }
+    });
+
+    result.questions = rawQuestions;
   }
 
   return result;
@@ -163,8 +199,8 @@ export function parseExamText(rawText) {
 
 export const defaultExamData = {
   school: 'المدرسة: فخر المخدرات',
-  subject: 'عقائد',
-  stage: 'تمهيدي',
+  subject: 'علوم قرآن',
+  stage: 'الرابعة',
   semester: 'الفصل: الأول',
   termTitle: 'امتحانات الفصل الأول',
   year: '1448 هـ',
@@ -174,123 +210,129 @@ export const defaultExamData = {
     'الامتحانات الفصلية',
     'لعام 1448 هـ'
   ],
-  notice: 'تحديد المادة الداخلة في الامتحان من بداية الكتاب إلى د١١غير داخل',
+  notice: 'المادة الداخلة بالامتحان : من بداية الكتاب إلى الدرس ٩ غير داخل',
   teacher: 'انتظار شعلان عبد الرزاق',
   fontFamily: 'Amiri',
-  fontSize: '17', // in px
-  lineHeight: '1.6',
+  fontSize: '16.5',
+  lineHeight: '1.55',
   questions: [
     {
       id: 'q_1',
       number: 'س١',
-      mainText: '',
-      marks: '',
+      mainText: 'عرفي خمسة ما يلي :',
+      marks: '( ١٥د)',
       pageBreakBefore: false,
       branches: [
         {
           id: 'b_1_1',
-          label: 'أ',
-          content: 'عرفي خمسة مما يأتي:\n١- الصفات السلبية   ٢- الصفات الثبوتية الذاتية.   ٣- فروع الدين.   ٤- العدل\n٥- أصول الدين   ٦- الصفات الفعلية.   ٧- التوحيد في العبادة.',
+          label: '',
+          content: '١-  القرأن اصطلاحاً.   ٢- الشريعة.   ٣- العلوم الإنسانية.\n٤- إصطلاح طبيعة الاشياء   ٥- الأخلاق.   ٦- علوم القرآن.',
           marks: ''
-        },
-        {
-          id: 'b_1_2',
-          label: 'ب',
-          content: 'عدد كلا من أصول الدين وفروع الدين، وبيني ما هو الفرق بينهما؟',
-          marks: '(١٠ د)'
         }
       ]
     },
     {
       id: 'q_2',
       number: 'س٢',
-      mainText: '',
-      marks: '(٢٠ د)',
+      mainText: 'إملائي الفراغات التالية . (ترك فراغ واحد فقط)',
+      marks: '(١٥ د)',
       pageBreakBefore: false,
       branches: [
         {
           id: 'b_2_1',
-          label: 'أ',
-          content: 'هل تمتلكين دليلاً عقلياً على ان التقليد والظن مذموم عقلاً ؟',
+          label: '',
+          content: '١- قد اصبح اسم القران الكريم علما له فلا يطلق على..........  وقد ورد هذا الاسم في ....... آية قرآنية.\n٢- يعتبر القرآن الكريم اول الادلة التي يعتمدها الفقهاء في اسطنباط الحكم الشرعي ثم تاتي بعدها............ و......... و.........\n٣- الأخلاق هي الصفات والملكات الراسخه في النفس او هي.............. وقد تطلق على العمل و................\n٤- القرآن كلمة عربية اصيلة، وهي مصدر على وزن........... وتاتي بمعنى.............. و............\n٥- ان الروايات التي جاءت تتحدث عن جمع القران في عهد الخلفاء ليست............ ولا على .............. ولذلك يكون القول الراجح هو..........\n٦- كانت نسخ القران تسمى بأسماء كتابها مثل نسخة مصحف........وقد انتشرت بالكوفة نسخة تسمى  ومصحف.......... وقد انتشرت في بلاد الشام ومصحف.......... وقد في مدينة دمشق.',
           marks: ''
-        },
-        {
-          id: 'b_2_2',
-          label: 'ب',
-          content: 'كيف تستدلين بأن الله تعالى واحد لا شريك له؟',
-          marks: '(٢٠ د)'
         }
       ]
     },
     {
       id: 'q_3',
       number: 'س٣',
-      mainText: 'اجيبي عن الفرعين فقط مما يأتي.',
+      mainText: 'ماهو مراد المصنف لاثنين مما يلي؟',
       marks: '(٢٠ د)',
       pageBreakBefore: false,
       branches: [
         {
           id: 'b_3_1',
           label: 'أ',
-          content: 'اذكري اربع من الصفات السلبية؟ مع شرح واحدة منها.',
+          content: 'في اي زمان دون القرآن الكريم مع الدليل على ذلك؟',
           marks: ''
         },
         {
           id: 'b_3_2',
           label: 'ب',
-          content: 'اذكري دليلاً عقلياً على استحالة الرؤية البصرية لله تعالى؟',
+          content: 'علاقة البسملة بالسور القرآنية؟',
           marks: ''
         },
         {
           id: 'b_3_3',
           label: 'ج',
-          content: 'إلى ماذا يشر قوله تعالى : (وما كنا معذبين حتى نبعث رسولاً)',
-          marks: '(٢٠ د)'
+          content: 'إصطلاح جمع القرآن الكريم وتدونيه له معاني  عدة عدديها، واي هذه المعاني هو المعنى المطلوب ؟',
+          marks: ''
         }
       ]
     },
     {
       id: 'q_4',
       number: 'س٤',
-      mainText: 'اعطي دليل نقلي لخمسة مما يلي :',
-      marks: '(٢٠ د)',
-      pageBreakBefore: false,
+      mainText: 'اجيبي عن الفرعين فقط مماياتي.',
+      marks: '(٢٠د)',
+      pageBreakBefore: true, // Page 2 starts here cleanly
       branches: [
         {
           id: 'b_4_1',
-          label: '',
-          content: '١- افعال الله تعالى كلها حكمة\n٢- وحدانية الله تعالى.\n٣- الشرك ذنباً لا يغفره.\n٤- انكار لله تعالى على تارك النظر خلق الله تعالى.\n٥- ادعت بعض الديانات في عزير وعيسى عليهم السلام انهم أبناء لله عزوجل.\n٦- ذم الله تعالى من يتبع ظنونه',
-          marks: '(٢٠ د)'
+          label: 'أ',
+          content: 'بيني أهداف القرآن الكريم من خلال القرآن نفسه',
+          marks: ''
+        },
+        {
+          id: 'b_4_2',
+          label: 'ب',
+          content: 'بيني ما  المراد من المصاحف وكذلك ما المراد من توحيد المصاحف؟',
+          marks: ''
+        },
+        {
+          id: 'b_4_3',
+          label: 'ج',
+          content: 'استعمل القرآن الكريم كلمة  الآية عدة استعمالات، اذكريها؟',
+          marks: ''
         }
       ]
     },
     {
       id: 'q_5',
       number: 'س٥',
-      mainText: 'عددي بنقطتين مما يلي.؟',
-      marks: '(٢٠ د)',
-      pageBreakBefore: true, // Starts Page 2 cleanly
+      mainText: 'صححي الخطأ في العبارات التالية وتركي الصحيح أن وجد. الإجابة عن خمس نقاط فقط.',
+      marks: '(١٥ د)',
+      pageBreakBefore: false,
       branches: [
         {
           id: 'b_5_1',
           label: '',
-          content: '١- مراتب التوحيد وبيني اثنين منها\n٢- هناك اربع صور تفسر حالة من يصدر عنه ظلم اذكريها؟\n٣- اذكري خمس أدلة لبطلان الجبر.',
-          marks: '(٢٠ د)'
+          content: '١- افتتحت بعض الصور القرانيه بحروف واضحه المعنى سماها المفسرون بفواتح السور\n٢- وقع اختلاف كبير في تحديد معاني فواتح الصور ولكن القول الراجح بالدليل هو. انها اسماء لسواريها ولذلك يقال سورة( حم) وسورة (ق) وهكذا\n٣- ان توحيد المصاحف يعني جعل القران الكريم ما بين دفتين يبدا بسورة الفاتحة وينتهي بسورة الناس.\n٤- مفرده النزول تعني العلو  وبذلك تعني انها العلواً  المكانياً اي نزل من السماء الى الارض.\n٥- ينقسم نزول القران الى قسمين نزولا دفعي جمله واحدة ونزولا تدريجي وكلا النزولين كان المخاطب به هو الرسول صلى الله عليه واله وسلم.\n٦- ان من اهم نقاط قوة القران الكريم والتي اعطتة مكانتة العظيمة هي دوام الحاجة اليه وذلك لحيويته وصلاحيته لكل زمان ومكان.',
+          marks: ''
         }
       ]
     },
     {
       id: 'q_6',
       number: 'س٦',
-      mainText: 'املي الفراغات التالية.',
-      marks: '(١٠ د)',
-      pageBreakBefore: false,
+      mainText: '',
+      marks: '',
+      pageBreakBefore: true, // Page 3 starts here cleanly because Q6 is large!
       branches: [
         {
           id: 'b_6_1',
-          label: '',
-          content: '١- من مظاهر العدل الالهي ان الله جعل الإنسان .......، وإنقسم المسلمون إلى فرق أبرزها........\n٢- ان الله تعالى قد كلف عباده بافعال الفرائض والواجبات والامتناع عن النواهي والمحرمات ولازم هذا التكليف.................. للقيام بما كلف به؛ حتى...........\n٣- أن طرق معرفة الله عديدة ومتنوعة منها.......... امام عامة الناس و منها............ .\n٤- الله تعالى استثى حالات معينة لا يحاسب عليها الإنسان منها........... او.........\n٥- ان حصول المعرفة بالشيء أما إن تكون........... أو.........\n٦- يتحقق الكمال المطلق لله تعالى بي ....... و..........',
-          marks: '(١٠ د)'
+          label: 'أ',
+          content: 'اختاري مابين الأقواس. الإجابة على خمس نقاط فقط.\n١- اقدم محاولة في الكتابة والتدوين في علوم القرآن في:\n   أ- القرن الأول الهجري   ب- القرن السابع   ج- زمن الشيخ المحدث الكليني.\n٢- من اهم كتب علوم القران كان (البرهان في علوم القرآن) للكاتب:\n   أ- الشريف الرضي   ب- علي ابن شهر آشوب   ج- بدر الدين الزركشي\n٣- السر في اختيار اللغة العربية للقرآن الكريم هو:\n   أ- تابعاً للبيئة والمجتمع   ب- قدرة اللغة العربية العالية للاستيعاب   ج- كلاهما معاً.\n٤- عدد المصاحف المنتشرة في بلاد المسلمين بلغت:\n   أ- خمس مصاحف   ب- سبع مصاحف   ج- عشرة مصاحف\n٥- معنى السورة القرآنية هو:\n   أ- مأخوذة من الصورة   ب- مأخوذة من السور   ج- كلاهما خطأ\n٦- احد أسباب تسمية السور القرآنية:\n   أ- توقيفية   ب- مقتبس من المواضيع والأحداث   ج- كلاهما صحيح',
+          marks: '(٥ د)'
+        },
+        {
+          id: 'b_6_2',
+          label: 'ب',
+          content: 'تحدثي عن احد الموضوعين بشكل مفصل كماهو موجود في الكتاب مع بيان مدى مرجعيتها للقران الكريم:\n١- علم التاريخ الإسلامي.\n٢- العلوم الطبيعية التجريبية.',
+          marks: '(١٠د)'
         }
       ]
     }
