@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styles from './App.module.css';
 import { defaultExamData, parseExamText } from './utils/parser';
 import { exportToDocx, generateDocxBlob } from './utils/docxExporter';
+import fileSaver from 'file-saver';
+const saveAs = fileSaver.saveAs || fileSaver;
 import {
   FileText,
   Eye,
@@ -256,7 +258,13 @@ export default function App() {
 
   // Handle PDF Print
   const handlePrint = () => {
-    window.print();
+    if (isMobile && activeTab !== 'preview') {
+      setActiveTab('preview');
+    }
+    showToast('جارٍ فتح نافذة الطباعة وحفظ PDF...');
+    setTimeout(() => {
+      window.print();
+    }, 250);
   };
 
   // Export to Word
@@ -274,40 +282,53 @@ export default function App() {
   // Handle File Sharing (Word .docx) directly to WhatsApp, Telegram, or System Sheet
   const handleShareDocxFile = async (targetApp = null) => {
     try {
-      showToast('جارٍ إعداد وتجهيز ملف Word للمشاركة...');
+      showToast('جارٍ تجهيز ملف Word...');
       const blob = await generateDocxBlob(examData);
       const filename = `${examData.subject || 'أسئلة'}_${examData.stage || 'امتحان'}.docx`;
       const file = new File([blob], filename, {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       });
 
-      // If mobile or browser supports sharing files natively:
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({
-          title: examData.title || 'أسئلة الامتحان',
-          text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
-          files: [file]
-        });
-        showToast('تمت مشاركة الملف بنجاح!');
-        return;
+      const downloadAndNotify = () => {
+        saveAs(blob, filename);
+        if (targetApp === 'whatsapp') {
+          showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح واتساب لإرفاق الملف...');
+          setTimeout(() => {
+            window.open('https://web.whatsapp.com', '_blank');
+          }, 350);
+        } else if (targetApp === 'telegram') {
+          showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح تيليجرام لإرفاق الملف...');
+          setTimeout(() => {
+            window.open('https://web.telegram.org', '_blank');
+          }, 350);
+        } else {
+          showToast('تم تحميل مستند Word بنجاح!');
+        }
+      };
+
+      const isMobileDevice = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (isMobileDevice && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({
+            title: examData.title || 'أسئلة الامتحان',
+            text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
+            files: [file]
+          });
+          showToast('تمت مشاركة الملف بنجاح!');
+          return;
+        } catch (shareErr) {
+          if (shareErr.name === 'AbortError') return;
+          downloadAndNotify();
+          return;
+        }
       }
 
-      // Desktop fallback: download the docx file and open WhatsApp/Telegram Web
-      await exportToDocx(examData);
-      if (targetApp === 'whatsapp') {
-        showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح واتساب لإرسال الملف...');
-        window.open('https://web.whatsapp.com', '_blank');
-      } else if (targetApp === 'telegram') {
-        showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح تيليجرام لإرسال الملف...');
-        window.open('https://web.telegram.org', '_blank');
-      } else {
-        showToast('تم تحميل المستند بنجاح (المتصفح المكتبي لا يدعم نافذة المشاركة)');
-      }
+      downloadAndNotify();
     } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error(err);
-        showToast('تعذرت المشاركة المباشرة');
-      }
+      console.error(err);
+      await exportToDocx(examData);
+      showToast('تم تنزيل المستند بنجاح في جهازك');
     }
   };
 
@@ -470,8 +491,8 @@ export default function App() {
       <main className={styles.mainLayout}>
         <div className={(!isMobile && activeTab !== 'preview') ? styles.desktopSplit : styles.singleColumn}>
           
-          {/* EDIT & FORM COLUMN (Hidden on mobile if activeTab === 'preview') */}
-          {(!isMobile || activeTab !== 'preview') && (
+          {/* EDIT & FORM COLUMN (Hidden on mobile if activeTab === 'preview', hidden in print) */}
+          <div className={`${(!isMobile || activeTab !== 'preview') ? styles.formColumnVisible : styles.formColumnHidden} ${styles.noPrint}`}>
             <div>
               {/* SMART IMPORT TAB */}
               {activeTab === 'smartPaste' && (
@@ -873,10 +894,10 @@ export default function App() {
                 </div>
               )}
             </div>
-          )}
+          </div>
 
-          {/* PREVIEW COLUMN (Always visible on desktop split, or in preview tab on mobile) */}
-          {(!isMobile || activeTab === 'preview') && (
+          {/* PREVIEW COLUMN (Always rendered in DOM so printing to PDF works from any tab) */}
+          <div className={(!isMobile || activeTab === 'preview') ? styles.previewContainerVisible : styles.previewContainerHidden}>
             <div>
               {/* TYPOGRAPHY TOOLBAR */}
               <div className={styles.previewToolbar}>
@@ -1103,7 +1124,7 @@ export default function App() {
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
         </div>
       </main>

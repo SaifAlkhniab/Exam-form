@@ -12,7 +12,8 @@ import {
   ImageRun,
   PageBreak
 } from 'docx';
-import { saveAs } from 'file-saver';
+import fileSaver from 'file-saver';
+const saveAs = fileSaver.saveAs || fileSaver;
 
 export async function createDocxDocument(examData) {
   let logoBuffer = null;
@@ -25,8 +26,8 @@ export async function createDocxDocument(examData) {
     console.warn('Could not load logo for DOCX:', err);
   }
 
-  const selectedFont = examData.fontFamily || 'Traditional Arabic';
-  const baseSizePt = Math.round((parseFloat(examData.fontSize || 16.5) * 1.33));
+  const selectedFont = examData.fontFamily === 'Cairo' ? 'Cairo' : 'Arial';
+  const baseSizePt = 24; // 12pt standard in Word
 
   const cellBorderNone = {
     top: { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' },
@@ -39,22 +40,26 @@ export async function createDocxDocument(examData) {
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
+      spacing: { before: 20, after: 20, line: 260 },
       children: [new TextRun({ text: 'العتبة العباسية المقدسة', bold: true, size: 24, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
+      spacing: { before: 20, after: 20, line: 260 },
       children: [new TextRun({ text: 'شعبة مدارس الكفيل الدينية النسوية', bold: true, size: 22, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
-      children: [new TextRun({ text: 'الامتحانات الفصلية', size: 20, font: selectedFont })]
+      spacing: { before: 20, after: 20, line: 260 },
+      children: [new TextRun({ text: 'الامتحانات الفصلية', bold: true, size: 20, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
-      children: [new TextRun({ text: `لعام ${examData.year || '1448 هـ'}`, size: 20, font: selectedFont })]
+      spacing: { before: 20, after: 20, line: 260 },
+      children: [new TextRun({ text: `لعام ${examData.year || '1448 هـ'}`, bold: true, size: 20, font: selectedFont })]
     })
   ];
 
@@ -63,10 +68,11 @@ export async function createDocxDocument(examData) {
     centerColumnParagraphs.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
+        spacing: { before: 20, after: 40 },
         children: [
           new ImageRun({
             data: logoBuffer,
-            transformation: { width: 72, height: 54 }
+            transformation: { width: 68, height: 50 }
           })
         ]
       })
@@ -76,6 +82,7 @@ export async function createDocxDocument(examData) {
     new Paragraph({
       alignment: AlignmentType.CENTER,
       bidirectional: true,
+      spacing: { before: 40, after: 20 },
       children: [
         new TextRun({
           text: examData.termTitle || 'امتحانات الفصل الأول',
@@ -91,50 +98,64 @@ export async function createDocxDocument(examData) {
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
+      spacing: { before: 20, after: 20, line: 260 },
       children: [new TextRun({ text: examData.school || 'المدرسة: فخر المخدرات', bold: true, size: 22, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
+      spacing: { before: 20, after: 20, line: 260 },
       children: [new TextRun({ text: `المادة: ${examData.subject || ''}`, bold: true, size: 22, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
+      spacing: { before: 20, after: 20, line: 260 },
       children: [new TextRun({ text: `المرحلة: ${examData.stage || ''}`, bold: true, size: 22, font: selectedFont })]
     }),
     new Paragraph({
       alignment: AlignmentType.RIGHT,
       bidirectional: true,
+      spacing: { before: 20, after: 20, line: 260 },
       children: [new TextRun({ text: examData.semester || 'الفصل: الأول', bold: true, size: 22, font: selectedFont })]
     })
   ];
 
+  // In Word Right-to-Left tables (visuallyRightToLeft: true):
+  // Column 0 is on the RIGHT, Column 1 is in CENTER, Column 2 is on the LEFT
   const headerTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
+    alignment: AlignmentType.CENTER,
+    visuallyRightToLeft: true,
+    margins: { top: 120, bottom: 120, left: 140, right: 140 },
     borders: {
       top: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
       bottom: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
       left: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
-      right: { style: BorderStyle.SINGLE, size: 16, color: '000000' }
+      right: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
+      insideH: { style: BorderStyle.NONE, size: 0, color: 'auto' },
+      insideV: { style: BorderStyle.NONE, size: 0, color: 'auto' }
     },
     rows: [
       new TableRow({
         children: [
+          // Cell 0: RIGHT SIDE (Al-Abbas Holy Shrine)
           new TableCell({
-            width: { size: 35, type: WidthType.PERCENTAGE },
+            width: { size: 36, type: WidthType.PERCENTAGE },
             borders: cellBorderNone,
-            children: leftColumnParagraphs
+            children: rightColumnParagraphs
           }),
+          // Cell 1: CENTER (Logo + Term Title)
           new TableCell({
-            width: { size: 30, type: WidthType.PERCENTAGE },
+            width: { size: 28, type: WidthType.PERCENTAGE },
             borders: cellBorderNone,
             children: centerColumnParagraphs
           }),
+          // Cell 2: LEFT SIDE (School, Subject, Stage, Semester)
           new TableCell({
-            width: { size: 35, type: WidthType.PERCENTAGE },
+            width: { size: 36, type: WidthType.PERCENTAGE },
             borders: cellBorderNone,
-            children: rightColumnParagraphs
+            children: leftColumnParagraphs
           })
         ]
       })
