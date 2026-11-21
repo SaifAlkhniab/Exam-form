@@ -121,41 +121,61 @@ export async function createDocxDocument(examData) {
     })
   ];
 
-  // In Word Right-to-Left tables (visuallyRightToLeft: true):
-  // Column 0 is on the RIGHT, Column 1 is in CENTER, Column 2 is on the LEFT
+  const solidBlackBorder = { style: BorderStyle.SINGLE, size: 16, color: '000000' };
+  const borderNone = { style: BorderStyle.NONE, size: 0, color: 'FFFFFF' };
+
+  // In Word & OnlyOffice:
+  // Cell 0: LEFT COLUMN (School, Subject, Stage, Semester) -> top, bottom, left solid black
+  // Cell 1: CENTER COLUMN (Emblem + Term Title) -> top, bottom solid black
+  // Cell 2: RIGHT COLUMN (Al-Abbas Holy Shrine) -> top, bottom, right solid black
+  // Together this guarantees a solid outer rectangle box across all office suites without column inversion!
   const headerTable = new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     alignment: AlignmentType.CENTER,
-    visuallyRightToLeft: true,
-    margins: { top: 120, bottom: 120, left: 140, right: 140 },
+    margins: { top: 140, bottom: 140, left: 160, right: 160 },
     borders: {
-      top: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
-      bottom: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
-      left: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
-      right: { style: BorderStyle.SINGLE, size: 16, color: '000000' },
-      insideH: { style: BorderStyle.NONE, size: 0, color: 'auto' },
-      insideV: { style: BorderStyle.NONE, size: 0, color: 'auto' }
+      top: solidBlackBorder,
+      bottom: solidBlackBorder,
+      left: solidBlackBorder,
+      right: solidBlackBorder,
+      insideH: borderNone,
+      insideV: borderNone
     },
     rows: [
       new TableRow({
         children: [
-          // Cell 0: RIGHT SIDE (Al-Abbas Holy Shrine)
+          // Cell 0: LEFT SIDE (School, Subject, Stage, Semester)
           new TableCell({
             width: { size: 36, type: WidthType.PERCENTAGE },
-            borders: cellBorderNone,
-            children: rightColumnParagraphs
+            borders: {
+              top: solidBlackBorder,
+              bottom: solidBlackBorder,
+              left: solidBlackBorder,
+              right: borderNone
+            },
+            children: leftColumnParagraphs
           }),
           // Cell 1: CENTER (Logo + Term Title)
           new TableCell({
             width: { size: 28, type: WidthType.PERCENTAGE },
-            borders: cellBorderNone,
+            borders: {
+              top: solidBlackBorder,
+              bottom: solidBlackBorder,
+              left: borderNone,
+              right: borderNone
+            },
             children: centerColumnParagraphs
           }),
-          // Cell 2: LEFT SIDE (School, Subject, Stage, Semester)
+          // Cell 2: RIGHT SIDE (Al-Abbas Holy Shrine details)
           new TableCell({
             width: { size: 36, type: WidthType.PERCENTAGE },
-            borders: cellBorderNone,
-            children: leftColumnParagraphs
+            borders: {
+              top: solidBlackBorder,
+              bottom: solidBlackBorder,
+              left: borderNone,
+              right: solidBlackBorder
+            },
+            children: rightColumnParagraphs
           })
         ]
       })
@@ -195,7 +215,7 @@ export async function createDocxDocument(examData) {
 
     const qRuns = [
       new TextRun({
-        text: `${q.number || `س${idx + 1}`}/ `,
+        text: q.number ? `${q.number} ` : '',
         bold: true,
         size: baseSizePt + 2,
         font: selectedFont
@@ -240,7 +260,7 @@ export async function createDocxDocument(examData) {
         if (b.label) {
           bRuns.push(
             new TextRun({
-              text: `${b.label}/ `,
+              text: `${b.label} `,
               bold: true,
               size: baseSizePt,
               font: selectedFont

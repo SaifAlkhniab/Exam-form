@@ -25,7 +25,10 @@ import {
   Settings,
   Share2,
   Send,
-  MessageCircle
+  MessageCircle,
+  Smartphone,
+  RotateCcw,
+  X
 } from 'lucide-react';
 
 export default function App() {
@@ -36,10 +39,13 @@ export default function App() {
   const [expandedQuestions, setExpandedQuestions] = useState({});
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
-  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedExportFormat, setSelectedExportFormat] = useState('docx'); // 'docx' or 'pdf'
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showPwaBanner, setShowPwaBanner] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [isAutoFit, setIsAutoFit] = useState(true);
-  const exportMenuRef = useRef(null);
+  const touchStartRef = useRef(null);
 
   useEffect(() => {
     const handleResize = () => {
@@ -51,6 +57,46 @@ export default function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // PWA Install prompt listener
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      if (!localStorage.getItem('pwa_prompt_dismissed')) {
+        setShowPwaBanner(true);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+
+    const isStandalone = typeof window !== 'undefined' && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true
+    );
+    if (!isStandalone && !localStorage.getItem('pwa_prompt_dismissed')) {
+      setShowPwaBanner(true);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+  }, []);
+
+  const handleInstallPwa = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        setShowPwaBanner(false);
+      }
+      setDeferredPrompt(null);
+    } else {
+      alert('لتثبيت التطبيق على جهازك:\n- على متصفح Chrome / Android: اضغط على القائمة (⋮) ثم "تثبيت التطبيق" أو "إضافة للشاشة الرئيسية".\n- على Safari (iOS): اضغط زر المشاركة ثم "إضافة إلى الشاشة الرئيسية".');
+    }
+  };
+
+  const handleDismissPwa = () => {
+    setShowPwaBanner(false);
+    localStorage.setItem('pwa_prompt_dismissed', 'true');
+  };
+
   // Auto-calculated scale to fit the A4 page (794px wide) neatly within screen width
   const fitScale = useMemo(() => {
     if (typeof window === 'undefined') return 1;
@@ -61,16 +107,51 @@ export default function App() {
 
   const activeZoom = isAutoFit ? fitScale : zoomLevel;
 
-  // Close export menu on outside click
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) {
-        setShowExportMenu(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  // Touch pinch-to-zoom handlers on mobile preview
+  const handleTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchStartRef.current = { dist, initialZoom: activeZoom };
+    }
+  };
+
+  const handleTouchMove = (e) => {
+    if (e.touches.length === 2 && touchStartRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const factor = dist / touchStartRef.current.dist;
+      const newZoom = Math.min(1.8, Math.max(0.32, parseFloat((touchStartRef.current.initialZoom * factor).toFixed(2))));
+      setIsAutoFit(false);
+      setZoomLevel(newZoom);
+    }
+  };
+
+  // Clear all fields to start blank
+  const handleClearAll = () => {
+    if (window.confirm('هل أنت متأكد من مسح جميع بيانات الامتحان والأسئلة للبدء بنموذج فارغ؟')) {
+      setExamData({
+        ...examData,
+        subject: '',
+        stage: '',
+        school: '',
+        notice: '',
+        teacher: '',
+        questions: []
+      });
+      showToast('تم مسح جميع البيانات بنجاح والبدء بنموذج فارغ');
+    }
+  };
+
+  // Restore generic sample exam
+  const handleRestoreSample = () => {
+    setExamData(defaultExamData);
+    showToast('تمت استعادة النموذج التجريبي بنجاح');
+  };
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -256,15 +337,14 @@ export default function App() {
     return result;
   }, [examData.questions]);
 
-  // Handle PDF Print
+  // Handle PDF Print (No toast shown during print to prevent it appearing on exported PDF)
   const handlePrint = () => {
     if (isMobile && activeTab !== 'preview') {
       setActiveTab('preview');
     }
-    showToast('جارٍ فتح نافذة الطباعة وحفظ PDF...');
     setTimeout(() => {
       window.print();
-    }, 250);
+    }, 150);
   };
 
   // Export to Word
@@ -393,97 +473,50 @@ export default function App() {
                 </button>
               </div>
 
-              {/* UNIFIED EXPORT DROPDOWN */}
-              <div className={styles.exportWrapper} ref={exportMenuRef}>
-                <button
-                  className={`${styles.btn} ${styles.btnPrimary}`}
-                  onClick={() => setShowExportMenu(!showExportMenu)}
-                >
-                  <Share2 size={15} />
-                  <span>تصدير ▾</span>
-                </button>
-                {showExportMenu && (
-                  <div className={styles.exportDropdown}>
-                    <button
-                      className={styles.dropdownItem}
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        handlePrint();
-                      }}
-                    >
-                      <Printer size={16} color="#1b5e20" />
-                      <span>تحميل ملف PDF (طباعة جاهزة)</span>
-                    </button>
-                    <button
-                      className={styles.dropdownItem}
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        handleExportWord();
-                      }}
-                    >
-                      <FileText size={16} color="#0284c7" />
-                      <span>تحميل مستند Word (.docx)</span>
-                    </button>
-                    <div className={styles.dropdownDivider} />
-                    <button
-                      className={styles.dropdownItem}
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        handleShareDocxFile('whatsapp');
-                      }}
-                    >
-                      <MessageCircle size={16} color="#25D366" />
-                      <span>مشاركة ملف Word عبر واتساب</span>
-                    </button>
-                    <button
-                      className={styles.dropdownItem}
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        handleShareDocxFile('telegram');
-                      }}
-                    >
-                      <Send size={16} color="#0088cc" />
-                      <span>مشاركة ملف Word عبر تيليجرام</span>
-                    </button>
-                    <button
-                      className={styles.dropdownItem}
-                      onClick={() => {
-                        setShowExportMenu(false);
-                        handleShareDocxFile();
-                      }}
-                    >
-                      <Share2 size={16} color="#6366f1" />
-                      <span>مشاركة الملف عبر التطبيقات (Share)</span>
-                    </button>
-                  </div>
-                )}
-              </div>
+              {/* EXPORT & SHARE BUTTON (Opens 2-Step Modal) */}
+              <button
+                className={`${styles.btn} ${styles.btnPrimary}`}
+                onClick={() => setShowExportModal(true)}
+              >
+                <Share2 size={16} />
+                <span>تصدير أو مشاركة</span>
+              </button>
             </div>
           )}
         </div>
       </header>
 
-      {/* Toast Notification */}
+      {/* PWA INSTALL BANNER */}
+      {showPwaBanner && (
+        <div className={`${styles.pwaBanner} ${styles.noPrint}`}>
+          <div className={styles.pwaBannerText}>
+            <Smartphone size={20} color="#1b5e20" />
+            <span>📱 هل تود تثبيت تطبيق منظومة الأسئلة على جهازك للوصول السريع بدون متصفح؟</span>
+          </div>
+          <div className={styles.pwaBannerActions}>
+            <button
+              className={`${styles.btn} ${styles.btnPrimary}`}
+              style={{ padding: '6px 14px', fontSize: '0.82rem' }}
+              onClick={handleInstallPwa}
+            >
+              تثبيت التطبيق
+            </button>
+            <button
+              className={`${styles.btn} ${styles.btnSecondary}`}
+              style={{ padding: '6px 10px', fontSize: '0.82rem' }}
+              onClick={handleDismissPwa}
+            >
+              لاحقاً
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification (Strictly hidden in print to avoid appearing on exported PDF) */}
       {toastMessage && (
-        <div style={{
-          position: 'fixed',
-          top: 65,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          background: '#1b5e20',
-          color: '#ffffff',
-          padding: '8px 18px',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-          zIndex: 9999,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.88rem',
-          fontWeight: 600
-        }}>
+        <div className={`${styles.toastNotification} ${styles.noPrint}`}>
           <CheckCircle2 size={16} />
-          {toastMessage}
+          <span>{toastMessage}</span>
         </div>
       )}
 
@@ -637,6 +670,28 @@ export default function App() {
                       <School size={17} />
                       بيانات الامتحان والترويسة
                     </h2>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnSecondary}`}
+                        onClick={handleRestoreSample}
+                        style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                        title="استعادة النموذج التوضيحي"
+                      >
+                        <RotateCcw size={13} />
+                        <span>نموذج تجريبي</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={`${styles.btn} ${styles.btnDanger}`}
+                        onClick={handleClearAll}
+                        style={{ padding: '4px 10px', fontSize: '0.78rem' }}
+                        title="مسح جميع البيانات والبدء بنموذج فارغ"
+                      >
+                        <Trash2 size={13} />
+                        <span>مسح الكل</span>
+                      </button>
+                    </div>
                   </div>
                   <div className={styles.formGrid}>
                     <div className={styles.inputGroup}>
@@ -802,33 +857,38 @@ export default function App() {
                         {/* Question Form Body */}
                         {!isCollapsed && (
                           <div className={styles.questionCardBody}>
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                              <div className={styles.inputGroup} style={{ flex: '0 0 75px' }}>
+                            {/* Row 1: Question Number & Marks */}
+                            <div className={styles.questionRowNumberMarks}>
+                              <div className={styles.inputGroup} style={{ flex: '0 0 110px' }}>
                                 <label className={styles.label}>رقم السؤال</label>
                                 <input
                                   className={`${styles.input} ${styles.questionNumInput}`}
                                   value={q.number}
                                   onChange={(e) => handleUpdateQuestion(q.id, 'number', e.target.value)}
+                                  placeholder="س١ / أو 1."
                                 />
                               </div>
-                              <div className={styles.inputGroup} style={{ flex: '0 0 90px' }}>
+                              <div className={styles.inputGroup} style={{ flex: '0 0 110px' }}>
                                 <label className={styles.label}>الدرجة</label>
                                 <input
                                   className={`${styles.input} ${styles.questionMarksInput}`}
                                   value={q.marks}
                                   onChange={(e) => handleUpdateQuestion(q.id, 'marks', e.target.value)}
-                                  placeholder="(١٥ د)"
+                                  placeholder="(٢٠ د)"
                                 />
                               </div>
-                              <div className={styles.inputGroup} style={{ flex: 1, minWidth: '160px' }}>
-                                <label className={styles.label}>التوجيه / النص الرئيسي</label>
-                                <input
-                                  className={styles.input}
-                                  value={q.mainText}
-                                  onChange={(e) => handleUpdateQuestion(q.id, 'mainText', e.target.value)}
-                                  placeholder="مثال: عرفي خمسة مما يأتي..."
-                                />
-                              </div>
+                            </div>
+
+                            {/* Row 2: Dedicated Full-Width Question Prompt Textarea */}
+                            <div className={styles.questionRowText}>
+                              <label className={styles.label}>التوجيه / نص السؤال الرئيسي</label>
+                              <textarea
+                                className={`${styles.input} ${styles.questionMainTextarea}`}
+                                value={q.mainText}
+                                onChange={(e) => handleUpdateQuestion(q.id, 'mainText', e.target.value)}
+                                placeholder="اكتبي نص وتوجيه السؤال هنا بالتفصيل (مثال: عرفي المفاهيم الفقهية التالية...)"
+                                rows={2}
+                              />
                             </div>
 
                             {/* Sub Branches */}
@@ -1007,8 +1067,12 @@ export default function App() {
                 </div>
               </div>
 
-              {/* A4 PREVIEW CONTAINER */}
-              <div className={styles.paperWrapper}>
+              {/* A4 PREVIEW CONTAINER (With Native Touch Pinch-to-Zoom & Pan) */}
+              <div
+                className={styles.paperWrapper}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+              >
                 <div
                   className={styles.pageContainerMobile}
                   style={{
@@ -1089,7 +1153,7 @@ export default function App() {
                                 <div key={q.id} className={styles.paperQuestionItem}>
                                   <div className={styles.paperQuestionTitle}>
                                     <div>
-                                      <span>{q.number}/ </span>
+                                      {q.number && <span>{q.number} </span>}
                                       <span>{q.mainText}</span>
                                     </div>
                                     {q.marks && <span className={styles.paperMarks}>{q.marks}</span>}
@@ -1099,7 +1163,7 @@ export default function App() {
                                   {q.branches && q.branches.map((b) => (
                                     <div key={b.id} className={styles.paperBranchItem}>
                                       <div>
-                                        {b.label && <strong>{b.label}/ </strong>}
+                                        {b.label && <strong>{b.label} </strong>}
                                         <span>{b.content}</span>
                                       </div>
                                       {b.marks && <span className={styles.paperMarks}>{b.marks}</span>}
@@ -1161,80 +1225,138 @@ export default function App() {
             <span>المعاينة ({pages.length})</span>
           </button>
 
-          {/* UNIFIED EXPORT BUTTON FOR MOBILE */}
-          <div className={styles.exportWrapper} ref={exportMenuRef}>
-            <button
-              className={`${styles.btn} ${styles.btnPrimary}`}
-              onClick={() => setShowExportMenu(!showExportMenu)}
-              style={{ padding: '8px 12px', fontSize: '0.8rem' }}
-            >
-              <Share2 size={15} />
-              <span>تصدير</span>
-            </button>
-            {showExportMenu && (
-              <div
-                className={styles.exportDropdown}
-                style={{
-                  top: 'auto',
-                  bottom: 'calc(100% + 8px)',
-                  left: 0,
-                  right: 'auto',
-                  minWidth: '220px'
-                }}
-              >
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    handlePrint();
-                  }}
-                >
-                  <Printer size={16} color="#1b5e20" />
-                  <span>تحميل PDF (طباعة جاهزة)</span>
-                </button>
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    handleExportWord();
-                  }}
-                >
-                  <FileText size={16} color="#0284c7" />
-                  <span>تحميل مستند Word (.docx)</span>
-                </button>
-                <div className={styles.dropdownDivider} />
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    handleShareDocxFile('whatsapp');
-                  }}
-                >
-                  <MessageCircle size={16} color="#25D366" />
-                  <span>مشاركة ملف Word عبر واتساب</span>
-                </button>
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    handleShareDocxFile('telegram');
-                  }}
-                >
-                  <Send size={16} color="#0088cc" />
-                  <span>مشاركة ملف Word عبر تيليجرام</span>
-                </button>
-                <button
-                  className={styles.dropdownItem}
-                  onClick={() => {
-                    setShowExportMenu(false);
-                    handleShareDocxFile();
-                  }}
-                >
-                  <Share2 size={16} color="#6366f1" />
-                  <span>مشاركة الملف عبر التطبيقات (Share)</span>
-                </button>
+          {/* EXPORT BUTTON FOR MOBILE */}
+          <button
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            onClick={() => setShowExportModal(true)}
+            style={{ padding: '8px 14px', fontSize: '0.82rem', borderRadius: '8px' }}
+          >
+            <Share2 size={15} />
+            <span>تصدير</span>
+          </button>
+        </div>
+      )}
+
+      {/* UNIFIED 2-STEP EXPORT & SHARE MODAL */}
+      {showExportModal && (
+        <div className={styles.exportModalOverlay} onClick={() => setShowExportModal(false)}>
+          <div className={styles.exportModal} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.exportModalHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Share2 size={18} color="#1b5e20" />
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 700, color: '#1b5e20' }}>
+                  تصدير ومشاركة الامتحان
+                </h3>
               </div>
-            )}
+              <button
+                type="button"
+                className={styles.btnSecondary}
+                onClick={() => setShowExportModal(false)}
+                style={{ padding: '4px 8px', borderRadius: '6px', border: 'none', cursor: 'pointer', background: '#e2e8f0' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className={styles.exportModalBody}>
+              {/* Step 1: Format Selection */}
+              <div>
+                <label className={styles.label} style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>
+                  ١. اختر صيغة الملف المطلوبة:
+                </label>
+                <div className={styles.formatOptionGrid}>
+                  <div
+                    className={`${styles.formatCard} ${selectedExportFormat === 'docx' ? styles.formatCardActive : ''}`}
+                    onClick={() => setSelectedExportFormat('docx')}
+                  >
+                    <FileText size={28} color="#0284c7" />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>مستند وورد (Word)</span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b' }}>صيغة docx متوافقة وقابلة للتعديل</span>
+                  </div>
+
+                  <div
+                    className={`${styles.formatCard} ${selectedExportFormat === 'pdf' ? styles.formatCardActive : ''}`}
+                    onClick={() => setSelectedExportFormat('pdf')}
+                  >
+                    <Printer size={28} color="#1b5e20" />
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: '#0f172a' }}>ملف PDF جاهز</span>
+                    <span style={{ fontSize: '0.74rem', color: '#64748b' }}>طباعة مباشرة بحجم A4 رسمي</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Step 2: Action Selection */}
+              <div>
+                <label className={styles.label} style={{ marginBottom: '8px', display: 'block', fontWeight: 700 }}>
+                  ٢. اختر طريقة الحفظ أو المشاركة:
+                </label>
+                <div className={styles.actionButtonGroup}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnPrimary}`}
+                    style={{ padding: '12px', fontSize: '0.92rem', justifyContent: 'center' }}
+                    onClick={() => {
+                      setShowExportModal(false);
+                      if (selectedExportFormat === 'docx') {
+                        handleExportWord();
+                      } else {
+                        handlePrint();
+                      }
+                    }}
+                  >
+                    <Download size={18} />
+                    <span>تنزيل على جهازي ({selectedExportFormat === 'docx' ? 'مستند Word' : 'ملف PDF'})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnOutline}`}
+                    style={{ padding: '12px', fontSize: '0.92rem', justifyContent: 'center' }}
+                    onClick={() => {
+                      setShowExportModal(false);
+                      if (selectedExportFormat === 'docx') {
+                        handleShareDocxFile();
+                      } else {
+                        handlePrint();
+                      }
+                    }}
+                  >
+                    <Share2 size={18} />
+                    <span>مشاركة الملف عبر التطبيقات (واتساب، تيليجرام...)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Quick Messaging App Actions for Word */}
+              {selectedExportFormat === 'docx' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '8px', fontSize: '0.8rem', justifyContent: 'center' }}
+                    onClick={() => {
+                      setShowExportModal(false);
+                      handleShareDocxFile('whatsapp');
+                    }}
+                  >
+                    <MessageCircle size={15} color="#25D366" />
+                    <span>إرسال عبر واتساب</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '8px', fontSize: '0.8rem', justifyContent: 'center' }}
+                    onClick={() => {
+                      setShowExportModal(false);
+                      handleShareDocxFile('telegram');
+                    }}
+                  >
+                    <Send size={15} color="#0088cc" />
+                    <span>إرسال عبر تيليجرام</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -1,0 +1,24 @@
+{
+  "short_name": "منظومة الأسئلة",
+  "name": "منظومة إعداد الأسئلة الامتحانية - مدارس الكفيل",
+  "description": "تطبيق إعداد وتنسيق الأسئلة الامتحانية وتصديرها بصيغتي PDF و Word",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/logo.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#eef2f6",
+  "theme_color": "#1b5e20",
+  "display": "standalone",
+  "orientation": "portrait",
+  "dir": "rtl",
+  "lang": "ar"
+}
