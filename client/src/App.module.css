@@ -645,45 +645,67 @@
    ======================================================== */
 .headerBoxRectangle {
   border: 2px solid #000000;
-  padding: 10px 16px;
+  padding: 16px 20px;
+  min-height: 125px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   background: #ffffff;
   border-radius: 0;
+  box-sizing: border-box;
 }
 
 .headerBoxRounded {
   border: 2px solid #000000;
-  padding: 10px 16px;
+  padding: 16px 20px;
+  min-height: 125px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   background: #ffffff;
-  border-radius: 12px;
+  border-radius: 14px;
+  box-sizing: border-box;
 }
 
 .headerBoxBorderless {
   border: none;
-  border-bottom: 2px solid #000000;
-  padding: 10px 16px;
+  border-bottom: 3px double #000000;
+  padding: 14px 12px 18px 12px;
+  min-height: 120px;
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
-  margin-bottom: 12px;
-  background: #ffffff;
+  margin-bottom: 16px;
+  background: transparent;
+  box-sizing: border-box;
+}
+
+.headerBoxModernRibbon {
+  border: 1px solid #cbd5e1;
+  border-top: 4px solid #1b5e20;
+  padding: 16px 20px;
+  min-height: 125px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  background: #f8fafc;
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
 /* Right Section: Al-Abbas Holy Shrine details */
 .headerRight {
   text-align: right;
-  font-size: 0.95rem;
-  line-height: 1.45;
+  direction: rtl;
+  font-size: 1.05rem;
+  line-height: 1.6;
   font-weight: 700;
 }
 
@@ -698,36 +720,36 @@
 }
 
 .centerLogo {
-  height: 52px;
+  height: 60px;
   width: auto;
   object-fit: contain;
 }
 
 .centerTitleText {
+  font-size: 1.15rem;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #000000;
+  margin-top: 5px;
+}
+
+.centerTitleFramed {
   font-size: 1.05rem;
   font-weight: 700;
   white-space: nowrap;
   color: #000000;
-  margin-top: 2px;
-}
-
-.centerTitleFramed {
-  font-size: 0.98rem;
-  font-weight: 700;
-  white-space: nowrap;
-  color: #000000;
   border: 1px solid #000000;
-  padding: 2px 14px;
+  padding: 3px 16px;
   border-radius: 4px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-/* Left Section: School, Subject, Stage, Semester */
+/* Left Section: School, Subject, Stage, Semester (Aligned to RIGHT as per reference image) */
 .headerLeft {
-  text-align: left;
+  text-align: right;
   direction: rtl;
-  font-size: 0.95rem;
-  line-height: 1.45;
+  font-size: 1.05rem;
+  line-height: 1.6;
   font-weight: 700;
 }
 

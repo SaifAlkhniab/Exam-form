@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styles from './App.module.css';
 import { defaultExamData, parseExamText } from './utils/parser';
-import { exportToDocx } from './utils/docxExporter';
+import { exportToDocx, generateDocxBlob } from './utils/docxExporter';
 import {
   FileText,
   Eye,
@@ -21,7 +21,9 @@ import {
   ChevronDown,
   ChevronUp,
   Settings,
-  Share2
+  Share2,
+  Send,
+  MessageCircle
 } from 'lucide-react';
 
 export default function App() {
@@ -257,10 +259,71 @@ export default function App() {
     }
   };
 
+  // Handle WhatsApp Share
+  const handleShareWhatsApp = () => {
+    const questionsCount = examData.questions?.length || 0;
+    const text = encodeURIComponent(
+      `📋 *${examData.title || 'أسئلة امتحان'}*\n` +
+      `📌 *المادة:* ${examData.subject || '-'}\n` +
+      `🎓 *المرحلة:* ${examData.stage || '-'}\n` +
+      `🏫 *المدرسة:* ${examData.school || 'فخر المخدرات'}\n` +
+      `📝 *عدد الأسئلة:* ${questionsCount}\n\n` +
+      `✨ تم الإعداد عبر منظومة إعداد الأسئلة الامتحانية (العتبة العباسية المقدسة)`
+    );
+    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
+  };
+
+  // Handle Telegram Share
+  const handleShareTelegram = () => {
+    const text = encodeURIComponent(
+      `📋 *${examData.title || 'أسئلة امتحان'}*\n` +
+      `📌 *المادة:* ${examData.subject || '-'} | 🎓 *المرحلة:* ${examData.stage || '-'}\n` +
+      `🏫 *المدرسة:* ${examData.school || 'فخر المخدرات'}\n` +
+      `✨ تم الإعداد عبر منظومة إعداد الأسئلة الامتحانية`
+    );
+    window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${text}`, '_blank');
+  };
+
+  // Handle Native File Share (Word .docx)
+  const handleShareFile = async () => {
+    try {
+      showToast('جارٍ تجهيز المستند للمشاركة...');
+      const blob = await generateDocxBlob(examData);
+      const filename = `${examData.subject || 'أسئلة'}_${examData.stage || 'امتحان'}.docx`;
+      const file = new File([blob], filename, {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          title: examData.title || 'أسئلة الامتحان',
+          text: `أسئلة مادة ${examData.subject || ''} - ${examData.stage || ''}`,
+          files: [file]
+        });
+        showToast('تمت مشاركة الملف بنجاح!');
+      } else if (navigator.share) {
+        await navigator.share({
+          title: examData.title || 'أسئلة الامتحان',
+          text: `أسئلة مادة ${examData.subject || ''} - ${examData.stage || ''}`,
+          url: window.location.href
+        });
+      } else {
+        await exportToDocx(examData);
+        showToast('تم تنزيل المستند (المتصفح لا يدعم قائمة المشاركة)');
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        console.error(err);
+        showToast('تعذرت المشاركة المباشرة');
+      }
+    }
+  };
+
   // Header Box Class based on Settings
   const headerBoxClass = useMemo(() => {
     if (examData.headerBoxStyle === 'rounded') return styles.headerBoxRounded;
     if (examData.headerBoxStyle === 'borderless') return styles.headerBoxBorderless;
+    if (examData.headerBoxStyle === 'modernRibbon') return styles.headerBoxModernRibbon;
     return styles.headerBoxRectangle;
   }, [examData.headerBoxStyle]);
 
@@ -338,7 +401,6 @@ export default function App() {
                       <Printer size={16} color="#1b5e20" />
                       <span>تحميل ملف PDF (طباعة جاهزة)</span>
                     </button>
-                    <div className={styles.dropdownDivider} />
                     <button
                       className={styles.dropdownItem}
                       onClick={() => {
@@ -348,6 +410,37 @@ export default function App() {
                     >
                       <FileText size={16} color="#0284c7" />
                       <span>تحميل مستند Word (.docx)</span>
+                    </button>
+                    <div className={styles.dropdownDivider} />
+                    <button
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleShareWhatsApp();
+                      }}
+                    >
+                      <MessageCircle size={16} color="#25D366" />
+                      <span>إرسال عبر واتساب (WhatsApp)</span>
+                    </button>
+                    <button
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleShareTelegram();
+                      }}
+                    >
+                      <Send size={16} color="#0088cc" />
+                      <span>إرسال عبر تيليجرام (Telegram)</span>
+                    </button>
+                    <button
+                      className={styles.dropdownItem}
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleShareFile();
+                      }}
+                    >
+                      <Share2 size={16} color="#6366f1" />
+                      <span>مشاركة المستند عبر التطبيقات</span>
                     </button>
                   </div>
                 )}
@@ -455,8 +548,15 @@ export default function App() {
                         className={`${styles.settingOptionCard} ${examData.headerBoxStyle === 'borderless' ? styles.settingOptionSelected : ''}`}
                         onClick={() => setExamData({ ...examData, headerBoxStyle: 'borderless' })}
                       >
-                        <span className={styles.settingOptionName}>بدون إطار خارجي (Clean)</span>
-                        <span className={styles.settingOptionDesc}>فقط خط سفلي فاصل بدون صندوق كامل</span>
+                        <span className={styles.settingOptionName}>بدون إطار خارجي (Clean Editorial)</span>
+                        <span className={styles.settingOptionDesc}>مفتوح وأنيق مع خط فاصل سفلي فقط</span>
+                      </div>
+                      <div
+                        className={`${styles.settingOptionCard} ${examData.headerBoxStyle === 'modernRibbon' ? styles.settingOptionSelected : ''}`}
+                        onClick={() => setExamData({ ...examData, headerBoxStyle: 'modernRibbon' })}
+                      >
+                        <span className={styles.settingOptionName}>بطاقة حديثة بشريط علوي (Modern Ribbon)</span>
+                        <span className={styles.settingOptionDesc}>خلفية هادئة وشريط بلون العتبة العباسية الأخضر</span>
                       </div>
                     </div>
                   </div>
@@ -1008,7 +1108,6 @@ export default function App() {
                   <Printer size={16} color="#1b5e20" />
                   <span>تحميل PDF (طباعة جاهزة)</span>
                 </button>
-                <div className={styles.dropdownDivider} />
                 <button
                   className={styles.dropdownItem}
                   onClick={() => {
@@ -1018,6 +1117,37 @@ export default function App() {
                 >
                   <FileText size={16} color="#0284c7" />
                   <span>تحميل مستند Word (.docx)</span>
+                </button>
+                <div className={styles.dropdownDivider} />
+                <button
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    handleShareWhatsApp();
+                  }}
+                >
+                  <MessageCircle size={16} color="#25D366" />
+                  <span>إرسال عبر واتساب (WhatsApp)</span>
+                </button>
+                <button
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    handleShareTelegram();
+                  }}
+                >
+                  <Send size={16} color="#0088cc" />
+                  <span>إرسال عبر تيليجرام (Telegram)</span>
+                </button>
+                <button
+                  className={styles.dropdownItem}
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    handleShareFile();
+                  }}
+                >
+                  <Share2 size={16} color="#6366f1" />
+                  <span>مشاركة عبر التطبيقات</span>
                 </button>
               </div>
             )}
