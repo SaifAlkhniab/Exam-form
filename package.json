@@ -1,0 +1,27 @@
+{
+  "name": "exam-form-creator",
+  "version": "1.0.0",
+  "description": "Smart Arabic Exam Form Creator & WhatsApp Parser for Islamic Hawzah & School Exams",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "build": "cd client && npm install && npm run build",
+    "client": "cd client && npm run dev"
+  },
+  "keywords": [
+    "exam",
+    "arabic",
+    "pdf",
+    "docx",
+    "hawzah",
+    "whatsapp-parser"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}

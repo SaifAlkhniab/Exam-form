@@ -1,0 +1,576 @@
+/* Pristine Light Mode Design & Mobile-First Styling */
+:root {
+  --primary: #1b5e20;
+  --primary-hover: #144617;
+  --primary-light: #e8f5e9;
+  --accent: #b78103;
+  --accent-light: #fff8e1;
+  --bg-page: #f8fafc;
+  --bg-card: #ffffff;
+  --text-main: #1e293b;
+  --text-muted: #64748b;
+  --border: #e2e8f0;
+  --border-focus: #1b5e20;
+  --danger: #dc2626;
+  --danger-light: #fef2f2;
+  --radius: 10px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
+.appContainer {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background-color: var(--bg-page);
+  color: var(--text-main);
+  font-family: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+  direction: rtl;
+}
+
+/* Header */
+.topNav {
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  padding: 12px 16px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  box-shadow: var(--shadow-sm);
+}
+
+.navContent {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brandLogo {
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+}
+
+.brandTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0;
+}
+
+.brandSubtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.topActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tab Bar for Mobile & Desktop */
+.tabBar {
+  display: flex;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: var(--radius);
+  gap: 4px;
+}
+
+.tabBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.tabBtnActive {
+  background: #ffffff;
+  color: var(--primary);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Action Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.btnPrimary {
+  background: var(--primary);
+  color: #ffffff;
+}
+.btnPrimary:hover {
+  background: var(--primary-hover);
+}
+
+.btnSecondary {
+  background: #ffffff;
+  color: var(--text-main);
+  border-color: var(--border);
+}
+.btnSecondary:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.btnAccent {
+  background: var(--accent);
+  color: #ffffff;
+}
+.btnAccent:hover {
+  background: #966902;
+}
+
+.btnDanger {
+  background: var(--danger-light);
+  color: var(--danger);
+  border-color: #fecaca;
+}
+.btnDanger:hover {
+  background: #fee2e2;
+}
+
+.btnOutline {
+  background: transparent;
+  border: 1px dashed var(--primary);
+  color: var(--primary);
+  width: 100%;
+  padding: 10px;
+}
+.btnOutline:hover {
+  background: var(--primary-light);
+}
+
+/* Main Content Area */
+.mainLayout {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px;
+  width: 100%;
+  box-sizing: border-box;
+  flex: 1;
+}
+
+.desktopSplit {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.singleColumn {
+  max-width: 850px;
+  margin: 0 auto;
+}
+
+/* Card Styling */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+/* Form Grid */
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+
+.inputGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.input, .textarea, .select {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: var(--text-main);
+  background: #ffffff;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.input:focus, .textarea:focus, .select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(27, 94, 32, 0.1);
+}
+
+.textarea {
+  min-height: 70px;
+  resize: vertical;
+}
+
+/* Smart Paste Box */
+.pasteBox {
+  background: #f8fafc;
+  border: 2px dashed #cbd5e1;
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 16px;
+}
+
+.pasteTextarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  line-height: 1.5;
+  box-sizing: border-box;
+  background: #ffffff;
+  margin-bottom: 10px;
+}
+
+/* Questions Editor */
+.questionCard {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px;
+  margin-bottom: 14px;
+  position: relative;
+  transition: box-shadow 0.2s;
+}
+
+.questionCard:hover {
+  box-shadow: var(--shadow-md);
+}
+
+.questionHeaderRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.questionNumInput {
+  width: 70px;
+  font-weight: 700;
+  color: var(--primary);
+  text-align: center;
+}
+
+.questionMarksInput {
+  width: 90px;
+  text-align: center;
+}
+
+.branchRow {
+  background: #f8fafc;
+  border-right: 3px solid var(--primary);
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.branchHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.branchLabelInput {
+  width: 50px;
+  text-align: center;
+  font-weight: bold;
+}
+
+/* Sticky Mobile Bottom Bar */
+.mobileStickyBar {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border-top: 1px solid var(--border);
+  padding: 10px 16px;
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+  z-index: 40;
+}
+
+@media (max-width: 900px) {
+  .desktopSplit {
+    grid-template-columns: 1fr;
+  }
+  .mobileStickyBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .mainLayout {
+    padding-bottom: 70px;
+  }
+}
+
+/* ========================================================
+   EXAM PAPER PREVIEW & PRINT STYLING
+   ======================================================== */
+.paperWrapper {
+  background: #64748b;
+  padding: 20px;
+  border-radius: var(--radius);
+  overflow-x: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.examPaper {
+  background: #ffffff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 12mm 15mm;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-lg);
+  position: relative;
+  font-family: 'Amiri', 'Traditional Arabic', serif;
+  color: #000000;
+  line-height: 1.6;
+}
+
+/* Official Outer Border */
+.paperBorder {
+  border: 2px solid #000000;
+  min-height: calc(297mm - 24mm);
+  padding: 8mm 10mm;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header Box */
+.examHeaderBox {
+  border: 1.5px solid #000000;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.headerRight {
+  text-align: right;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+.headerCenter {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.centerLogo {
+  height: 52px;
+  width: auto;
+  object-fit: contain;
+}
+
+.centerTitleBadge {
+  border: 1px solid #000000;
+  padding: 2px 14px;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.headerLeft {
+  text-align: left;
+  direction: rtl;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-weight: 700;
+}
+
+/* Notice line */
+.examNotice {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.05rem;
+  margin: 8px 0 16px 0;
+  padding-bottom: 4px;
+}
+
+/* Questions in Paper */
+.paperQuestions {
+  flex: 1;
+}
+
+.paperQuestionItem {
+  margin-bottom: 14px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.paperQuestionTitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.paperBranchItem {
+  padding-right: 20px;
+  font-size: 1.08rem;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  white-space: pre-wrap;
+  line-height: 1.6;
+}
+
+.paperMarks {
+  font-weight: 700;
+  font-size: 1rem;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+/* Footer Teacher Name */
+.paperFooter {
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.15rem;
+  margin-top: auto;
+  padding-top: 16px;
+}
+
+/* ========================================================
+   PRINT STYLES FOR NATIVE A4 VECTOR PDF
+   ======================================================== */
+@media print {
+  body {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .topNav,
+  .mobileStickyBar,
+  .card,
+  .tabBar,
+  .btn,
+  .pasteBox,
+  .noPrint {
+    display: none !important;
+  }
+
+  .mainLayout {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .desktopSplit {
+    display: block !important;
+  }
+
+  .paperWrapper {
+    background: transparent !important;
+    padding: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .examPaper {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    page-break-after: auto;
+  }
+
+  .paperBorder {
+    border: 2px solid #000000 !important;
+    min-height: 275mm !important;
+    padding: 8mm 10mm !important;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 10mm;
+  }
+}
