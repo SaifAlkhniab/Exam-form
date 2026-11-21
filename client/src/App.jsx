@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import styles from './App.module.css';
 import { defaultExamData, parseExamText } from './utils/parser';
 import { exportToDocx } from './utils/docxExporter';
@@ -27,8 +27,19 @@ export default function App() {
   const [examData, setExamData] = useState(defaultExamData);
   const [rawText, setRawText] = useState('');
   const [toastMessage, setToastMessage] = useState('');
-  const [previewZoom, setPreviewZoom] = useState('auto'); // 'auto', '0.5', '0.7', '1'
   const [expandedQuestions, setExpandedQuestions] = useState({});
+  const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 960 : false);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const w = window.innerWidth;
+      setWindowWidth(w);
+      setIsMobile(w < 960);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -228,6 +239,13 @@ export default function App() {
     }
   };
 
+  // Mobile Auto Scale factor
+  const mobileScale = useMemo(() => {
+    if (!isMobile) return 1;
+    const targetWidth = windowWidth - 32;
+    return Math.min(1, Math.max(0.38, targetWidth / 794));
+  }, [isMobile, windowWidth]);
+
   return (
     <div className={styles.appContainer}>
       {/* Top Header */}
@@ -241,40 +259,42 @@ export default function App() {
             </div>
           </div>
 
-          <div className={styles.topActions}>
-            <div className={styles.tabBar}>
-              <button
-                className={`${styles.tabBtn} ${activeTab === 'editor' ? styles.tabBtnActive : ''}`}
-                onClick={() => setActiveTab('editor')}
-              >
-                <Edit3 size={15} />
-                <span>النموذج</span>
+          {!isMobile && (
+            <div className={styles.topActions}>
+              <div className={styles.tabBar}>
+                <button
+                  className={`${styles.tabBtn} ${activeTab === 'editor' ? styles.tabBtnActive : ''}`}
+                  onClick={() => setActiveTab('editor')}
+                >
+                  <Edit3 size={15} />
+                  <span>النموذج</span>
+                </button>
+                <button
+                  className={`${styles.tabBtn} ${activeTab === 'smartPaste' ? styles.tabBtnActive : ''}`}
+                  onClick={() => setActiveTab('smartPaste')}
+                >
+                  <ClipboardPaste size={15} />
+                  <span>استيراد النص</span>
+                </button>
+                <button
+                  className={`${styles.tabBtn} ${activeTab === 'preview' ? styles.tabBtnActive : ''}`}
+                  onClick={() => setActiveTab('preview')}
+                >
+                  <Eye size={15} />
+                  <span>المعاينة ({pages.length} صفحات)</span>
+                </button>
+              </div>
+
+              <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrint}>
+                <Printer size={15} />
+                <span>تحميل PDF</span>
               </button>
-              <button
-                className={`${styles.tabBtn} ${activeTab === 'smartPaste' ? styles.tabBtnActive : ''}`}
-                onClick={() => setActiveTab('smartPaste')}
-              >
-                <ClipboardPaste size={15} />
-                <span>استيراد النص</span>
-              </button>
-              <button
-                className={`${styles.tabBtn} ${activeTab === 'preview' ? styles.tabBtnActive : ''}`}
-                onClick={() => setActiveTab('preview')}
-              >
-                <Eye size={15} />
-                <span>المعاينة ({pages.length} صفحات)</span>
+              <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleExportWord}>
+                <Download size={15} />
+                <span>ملف Word</span>
               </button>
             </div>
-
-            <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handlePrint}>
-              <Printer size={15} />
-              <span>تحميل PDF</span>
-            </button>
-            <button className={`${styles.btn} ${styles.btnSecondary}`} onClick={handleExportWord}>
-              <Download size={15} />
-              <span>ملف Word</span>
-            </button>
-          </div>
+          )}
         </div>
       </header>
 
@@ -304,10 +324,10 @@ export default function App() {
 
       {/* Main Workspace */}
       <main className={styles.mainLayout}>
-        <div className={activeTab === 'preview' ? styles.singleColumn : styles.desktopSplit}>
+        <div className={(!isMobile && activeTab !== 'preview') ? styles.desktopSplit : styles.singleColumn}>
           
-          {/* EDIT & FORM COLUMN */}
-          {activeTab !== 'preview' && (
+          {/* EDIT & FORM COLUMN (Hidden on mobile if user is on 'preview' tab) */}
+          {(!isMobile || activeTab !== 'preview') && (
             <div>
               {/* SMART IMPORT TAB */}
               {activeTab === 'smartPaste' && (
@@ -343,272 +363,276 @@ export default function App() {
               )}
 
               {/* EXAM HEADER CARD */}
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>
-                    <School size={17} />
-                    بيانات الامتحان والترويسة
-                  </h2>
+              {activeTab !== 'smartPaste' && (
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.cardTitle}>
+                      <School size={17} />
+                      بيانات الامتحان والترويسة
+                    </h2>
+                  </div>
+                  <div className={styles.formGrid}>
+                    <div className={styles.inputGroup}>
+                      <label className={styles.label}>المادة الدراسية</label>
+                      <input
+                        className={styles.input}
+                        value={examData.subject}
+                        onChange={(e) => setExamData({ ...examData, subject: e.target.value })}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label className={styles.label}>المرحلة</label>
+                      <input
+                        className={styles.input}
+                        value={examData.stage}
+                        onChange={(e) => setExamData({ ...examData, stage: e.target.value })}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label className={styles.label}>الفصل / الدور</label>
+                      <input
+                        className={styles.input}
+                        value={examData.semester}
+                        onChange={(e) => setExamData({ ...examData, semester: e.target.value })}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label className={styles.label}>عنوان الوسط (تحت الشعار)</label>
+                      <input
+                        className={styles.input}
+                        value={examData.termTitle}
+                        onChange={(e) => setExamData({ ...examData, termTitle: e.target.value })}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label className={styles.label}>اسم المدرسة</label>
+                      <input
+                        className={styles.input}
+                        value={examData.school}
+                        onChange={(e) => setExamData({ ...examData, school: e.target.value })}
+                      />
+                    </div>
+
+                    <div className={styles.inputGroup}>
+                      <label className={styles.label}>العام الدراسي</label>
+                      <input
+                        className={styles.input}
+                        value={examData.year}
+                        onChange={(e) => setExamData({ ...examData, year: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className={styles.inputGroup} style={{ marginTop: '10px' }}>
+                    <label className={styles.label}>المادة الداخلة في الامتحان (الملاحظة العلوية)</label>
+                    <input
+                      className={styles.input}
+                      value={examData.notice}
+                      onChange={(e) => setExamData({ ...examData, notice: e.target.value })}
+                    />
+                  </div>
+
+                  <div className={styles.inputGroup} style={{ marginTop: '10px' }}>
+                    <label className={styles.label}>اسم أستاذة / أستاذ المادة (يظهر دائماً أسفل الصفحة الأخيرة)</label>
+                    <input
+                      className={styles.input}
+                      value={examData.teacher}
+                      onChange={(e) => setExamData({ ...examData, teacher: e.target.value })}
+                    />
+                  </div>
                 </div>
-                <div className={styles.formGrid}>
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>المادة الدراسية</label>
-                    <input
-                      className={styles.input}
-                      value={examData.subject}
-                      onChange={(e) => setExamData({ ...examData, subject: e.target.value })}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>المرحلة</label>
-                    <input
-                      className={styles.input}
-                      value={examData.stage}
-                      onChange={(e) => setExamData({ ...examData, stage: e.target.value })}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>الفصل / الدور</label>
-                    <input
-                      className={styles.input}
-                      value={examData.semester}
-                      onChange={(e) => setExamData({ ...examData, semester: e.target.value })}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>عنوان الوسط (تحت الشعار)</label>
-                    <input
-                      className={styles.input}
-                      value={examData.termTitle}
-                      onChange={(e) => setExamData({ ...examData, termTitle: e.target.value })}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>اسم المدرسة</label>
-                    <input
-                      className={styles.input}
-                      value={examData.school}
-                      onChange={(e) => setExamData({ ...examData, school: e.target.value })}
-                    />
-                  </div>
-
-                  <div className={styles.inputGroup}>
-                    <label className={styles.label}>العام الدراسي</label>
-                    <input
-                      className={styles.input}
-                      value={examData.year}
-                      onChange={(e) => setExamData({ ...examData, year: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className={styles.inputGroup} style={{ marginTop: '10px' }}>
-                  <label className={styles.label}>المادة الداخلة في الامتحان (الملاحظة العلوية)</label>
-                  <input
-                    className={styles.input}
-                    value={examData.notice}
-                    onChange={(e) => setExamData({ ...examData, notice: e.target.value })}
-                  />
-                </div>
-
-                <div className={styles.inputGroup} style={{ marginTop: '10px' }}>
-                  <label className={styles.label}>اسم أستاذة / أستاذ المادة (يظهر دائماً أسفل الصفحة الأخيرة)</label>
-                  <input
-                    className={styles.input}
-                    value={examData.teacher}
-                    onChange={(e) => setExamData({ ...examData, teacher: e.target.value })}
-                  />
-                </div>
-              </div>
+              )}
 
               {/* QUESTIONS LIST */}
-              <div className={styles.card}>
-                <div className={styles.cardHeader}>
-                  <h2 className={styles.cardTitle}>
-                    <FileText size={17} />
-                    قائمة الأسئلة ({examData.questions.length})
-                  </h2>
-                  <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleAddQuestion}>
-                    <Plus size={15} />
-                    إضافة سؤال
-                  </button>
-                </div>
+              {activeTab !== 'smartPaste' && (
+                <div className={styles.card}>
+                  <div className={styles.cardHeader}>
+                    <h2 className={styles.cardTitle}>
+                      <FileText size={17} />
+                      قائمة الأسئلة ({examData.questions.length})
+                    </h2>
+                    <button className={`${styles.btn} ${styles.btnPrimary}`} onClick={handleAddQuestion}>
+                      <Plus size={15} />
+                      إضافة سؤال
+                    </button>
+                  </div>
 
-                {examData.questions.map((q, idx) => {
-                  const isCollapsed = expandedQuestions[q.id] === false;
+                  {examData.questions.map((q, idx) => {
+                    const isCollapsed = expandedQuestions[q.id] === false;
 
-                  return (
-                    <div key={q.id} className={styles.questionCard}>
-                      <div
-                        className={styles.questionHeaderRow}
-                        onClick={() => toggleQuestionExpand(q.id)}
-                      >
-                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 700, color: '#1b5e20', fontSize: '0.95rem' }}>
-                            {q.number || `س${idx + 1}`}
-                          </span>
-                          <span style={{ fontSize: '0.82rem', color: '#64748b', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {q.mainText || 'بدون نص رئيسي'}
-                          </span>
-                          {q.marks && (
-                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#b78103' }}>
-                              {q.marks}
+                    return (
+                      <div key={q.id} className={styles.questionCard}>
+                        <div
+                          className={styles.questionHeaderRow}
+                          onClick={() => toggleQuestionExpand(q.id)}
+                        >
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 700, color: '#1b5e20', fontSize: '0.95rem' }}>
+                              {q.number || `س${idx + 1}`}
                             </span>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          {idx > 0 && (
-                            <button
-                              type="button"
-                              className={styles.pageBreakBadge}
-                              style={{
-                                background: q.pageBreakBefore ? '#1b5e20' : '#f1f5f9',
-                                color: q.pageBreakBefore ? '#ffffff' : '#64748b',
-                                border: q.pageBreakBefore ? '1px solid #144617' : '1px dashed #cbd5e1'
-                              }}
-                              onClick={(e) => handleTogglePageBreak(q.id, e)}
-                              title="بدء صفحة جديدة في الطباعة من هذا السؤال"
-                            >
-                              <Layers size={13} />
-                              <span>{q.pageBreakBefore ? 'يبدأ بصفحة جديدة 📄' : 'نفس الصفحة'}</span>
-                            </button>
-                          )}
-
-                          <button
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            onClick={(e) => handleMoveQuestion(idx, -1, e)}
-                            disabled={idx === 0}
-                            title="تحريك لأعلى"
-                            style={{ padding: '5px' }}
-                          >
-                            <MoveUp size={13} />
-                          </button>
-                          <button
-                            className={`${styles.btn} ${styles.btnSecondary}`}
-                            onClick={(e) => handleMoveQuestion(idx, 1, e)}
-                            disabled={idx === examData.questions.length - 1}
-                            title="تحريك لأسفل"
-                            style={{ padding: '5px' }}
-                          >
-                            <MoveDown size={13} />
-                          </button>
-                          <button
-                            className={`${styles.btn} ${styles.btnDanger}`}
-                            onClick={(e) => handleDeleteQuestion(q.id, e)}
-                            title="حذف"
-                            style={{ padding: '5px' }}
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                          {isCollapsed ? <ChevronDown size={16} color="#64748b" /> : <ChevronUp size={16} color="#64748b" />}
-                        </div>
-                      </div>
-
-                      {/* Question Form Body */}
-                      {!isCollapsed && (
-                        <div className={styles.questionCardBody}>
-                          <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
-                            <div className={styles.inputGroup} style={{ flex: '0 0 80px' }}>
-                              <label className={styles.label}>رقم السؤال</label>
-                              <input
-                                className={`${styles.input} ${styles.questionNumInput}`}
-                                value={q.number}
-                                onChange={(e) => handleUpdateQuestion(q.id, 'number', e.target.value)}
-                              />
-                            </div>
-                            <div className={styles.inputGroup} style={{ flex: '0 0 100px' }}>
-                              <label className={styles.label}>الدرجة</label>
-                              <input
-                                className={`${styles.input} ${styles.questionMarksInput}`}
-                                value={q.marks}
-                                onChange={(e) => handleUpdateQuestion(q.id, 'marks', e.target.value)}
-                                placeholder="(١٥ د)"
-                              />
-                            </div>
-                            <div className={styles.inputGroup} style={{ flex: 1 }}>
-                              <label className={styles.label}>التوجيه / النص الرئيسي</label>
-                              <input
-                                className={styles.input}
-                                value={q.mainText}
-                                onChange={(e) => handleUpdateQuestion(q.id, 'mainText', e.target.value)}
-                                placeholder="مثال: عرفي خمسة مما يأتي..."
-                              />
-                            </div>
+                            <span style={{ fontSize: '0.82rem', color: '#64748b', maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {q.mainText || 'بدون نص رئيسي'}
+                            </span>
+                            {q.marks && (
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#b78103' }}>
+                                {q.marks}
+                              </span>
+                            )}
                           </div>
 
-                          {/* Sub Branches */}
-                          {q.branches && q.branches.length > 0 && (
-                            <div style={{ marginTop: '8px' }}>
-                              {q.branches.map((b) => (
-                                <div key={b.id} className={styles.branchRow}>
-                                  <div className={styles.branchHeader}>
-                                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                                      <span style={{ fontSize: '0.78rem', color: '#64748b' }}>الفرع:</span>
-                                      <input
-                                        className={`${styles.input} ${styles.branchLabelInput}`}
-                                        value={b.label}
-                                        onChange={(e) => handleUpdateBranch(q.id, b.id, 'label', e.target.value)}
-                                        placeholder="أ"
-                                      />
-                                      <input
-                                        className={`${styles.input} ${styles.questionMarksInput}`}
-                                        value={b.marks}
-                                        onChange={(e) => handleUpdateBranch(q.id, b.id, 'marks', e.target.value)}
-                                        placeholder="(١٠ د)"
-                                      />
-                                    </div>
-                                    <button
-                                      className={`${styles.btn} ${styles.btnDanger}`}
-                                      onClick={() => handleDeleteBranch(q.id, b.id)}
-                                      title="حذف الفرع"
-                                      style={{ padding: '4px 8px' }}
-                                    >
-                                      <Trash2 size={12} />
-                                    </button>
-                                  </div>
-                                  <textarea
-                                    className={styles.textarea}
-                                    value={b.content}
-                                    onChange={(e) => handleUpdateBranch(q.id, b.id, 'content', e.target.value)}
-                                    placeholder="محتوى الفرع، الفراغات، أو النقاط..."
-                                    rows={2}
-                                  />
-                                </div>
-                              ))}
-                            </div>
-                          )}
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            {idx > 0 && (
+                              <button
+                                type="button"
+                                className={styles.pageBreakBadge}
+                                style={{
+                                  background: q.pageBreakBefore ? '#1b5e20' : '#f1f5f9',
+                                  color: q.pageBreakBefore ? '#ffffff' : '#64748b',
+                                  border: q.pageBreakBefore ? '1px solid #144617' : '1px dashed #cbd5e1'
+                                }}
+                                onClick={(e) => handleTogglePageBreak(q.id, e)}
+                                title="بدء صفحة جديدة في الطباعة من هذا السؤال"
+                              >
+                                <Layers size={13} />
+                                <span>{q.pageBreakBefore ? 'صفحة جديدة 📄' : 'نفس الصفحة'}</span>
+                              </button>
+                            )}
 
-                          <div style={{ marginTop: '8px' }}>
                             <button
                               className={`${styles.btn} ${styles.btnSecondary}`}
-                              onClick={() => handleAddBranch(q.id)}
-                              style={{ fontSize: '0.78rem', padding: '5px 9px' }}
+                              onClick={(e) => handleMoveQuestion(idx, -1, e)}
+                              disabled={idx === 0}
+                              title="تحريك لأعلى"
+                              style={{ padding: '5px' }}
                             >
-                              <Plus size={12} /> إضافة فرع (أ / ب / ج)
+                              <MoveUp size={13} />
                             </button>
+                            <button
+                              className={`${styles.btn} ${styles.btnSecondary}`}
+                              onClick={(e) => handleMoveQuestion(idx, 1, e)}
+                              disabled={idx === examData.questions.length - 1}
+                              title="تحريك لأسفل"
+                              style={{ padding: '5px' }}
+                            >
+                              <MoveDown size={13} />
+                            </button>
+                            <button
+                              className={`${styles.btn} ${styles.btnDanger}`}
+                              onClick={(e) => handleDeleteQuestion(q.id, e)}
+                              title="حذف"
+                              style={{ padding: '5px' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                            {isCollapsed ? <ChevronDown size={16} color="#64748b" /> : <ChevronUp size={16} color="#64748b" />}
                           </div>
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
 
-                <button className={`${styles.btn} ${styles.btnOutline}`} onClick={handleAddQuestion}>
-                  <Plus size={15} /> إضافة سؤال جديد
-                </button>
-              </div>
+                        {/* Question Form Body */}
+                        {!isCollapsed && (
+                          <div className={styles.questionCardBody}>
+                            <div style={{ display: 'flex', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+                              <div className={styles.inputGroup} style={{ flex: '0 0 75px' }}>
+                                <label className={styles.label}>رقم السؤال</label>
+                                <input
+                                  className={`${styles.input} ${styles.questionNumInput}`}
+                                  value={q.number}
+                                  onChange={(e) => handleUpdateQuestion(q.id, 'number', e.target.value)}
+                                />
+                              </div>
+                              <div className={styles.inputGroup} style={{ flex: '0 0 90px' }}>
+                                <label className={styles.label}>الدرجة</label>
+                                <input
+                                  className={`${styles.input} ${styles.questionMarksInput}`}
+                                  value={q.marks}
+                                  onChange={(e) => handleUpdateQuestion(q.id, 'marks', e.target.value)}
+                                  placeholder="(١٥ د)"
+                                />
+                              </div>
+                              <div className={styles.inputGroup} style={{ flex: 1, minWidth: '160px' }}>
+                                <label className={styles.label}>التوجيه / النص الرئيسي</label>
+                                <input
+                                  className={styles.input}
+                                  value={q.mainText}
+                                  onChange={(e) => handleUpdateQuestion(q.id, 'mainText', e.target.value)}
+                                  placeholder="مثال: عرفي خمسة مما يأتي..."
+                                />
+                              </div>
+                            </div>
+
+                            {/* Sub Branches */}
+                            {q.branches && q.branches.length > 0 && (
+                              <div style={{ marginTop: '8px' }}>
+                                {q.branches.map((b) => (
+                                  <div key={b.id} className={styles.branchRow}>
+                                    <div className={styles.branchHeader}>
+                                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                                        <span style={{ fontSize: '0.78rem', color: '#64748b' }}>الفرع:</span>
+                                        <input
+                                          className={`${styles.input} ${styles.branchLabelInput}`}
+                                          value={b.label}
+                                          onChange={(e) => handleUpdateBranch(q.id, b.id, 'label', e.target.value)}
+                                          placeholder="أ"
+                                        />
+                                        <input
+                                          className={`${styles.input} ${styles.questionMarksInput}`}
+                                          value={b.marks}
+                                          onChange={(e) => handleUpdateBranch(q.id, b.id, 'marks', e.target.value)}
+                                          placeholder="(١٠ د)"
+                                        />
+                                      </div>
+                                      <button
+                                        className={`${styles.btn} ${styles.btnDanger}`}
+                                        onClick={() => handleDeleteBranch(q.id, b.id)}
+                                        title="حذف الفرع"
+                                        style={{ padding: '4px 8px' }}
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                    <textarea
+                                      className={styles.textarea}
+                                      value={b.content}
+                                      onChange={(e) => handleUpdateBranch(q.id, b.id, 'content', e.target.value)}
+                                      placeholder="محتوى الفرع، الفراغات، أو النقاط..."
+                                      rows={2}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            <div style={{ marginTop: '8px' }}>
+                              <button
+                                className={`${styles.btn} ${styles.btnSecondary}`}
+                                onClick={() => handleAddBranch(q.id)}
+                                style={{ fontSize: '0.78rem', padding: '5px 9px' }}
+                              >
+                                <Plus size={12} /> إضافة فرع (أ / ب / ج)
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <button className={`${styles.btn} ${styles.btnOutline}`} onClick={handleAddQuestion}>
+                    <Plus size={15} /> إضافة سؤال جديد
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
-          {/* PREVIEW COLUMN (Always visible on desktop split, or in preview tab on mobile) */}
-          {(activeTab === 'preview' || activeTab === 'editor') && (
+          {/* PREVIEW COLUMN (Shown on desktop in all tabs, and on mobile only when activeTab === 'preview') */}
+          {(!isMobile || activeTab === 'preview') && (
             <div>
-              {/* TYPOGRAPHY & ZOOM TOOLBAR */}
+              {/* TYPOGRAPHY TOOLBAR */}
               <div className={styles.previewToolbar}>
                 <div className={styles.toolbarGroup}>
                   <Type size={15} color="#1b5e20" />
@@ -635,7 +659,7 @@ export default function App() {
                     step="0.5"
                     value={examData.fontSize}
                     onChange={(e) => setExamData({ ...examData, fontSize: e.target.value })}
-                    style={{ width: '75px', accentColor: '#1b5e20' }}
+                    style={{ width: '70px', accentColor: '#1b5e20' }}
                   />
                   <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1b5e20', minWidth: '35px' }}>
                     {examData.fontSize}px
@@ -643,17 +667,16 @@ export default function App() {
                 </div>
 
                 <div className={styles.toolbarGroup}>
-                  <span className={styles.toolbarLabel}>الصفحات:</span>
                   <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1b5e20', background: '#e8f5e9', padding: '3px 8px', borderRadius: '6px' }}>
                     {pages.length} صفحات A4
                   </span>
                 </div>
               </div>
 
-              {/* MULTI-PAGE A4 PREVIEW CONTAINER */}
+              {/* A4 PREVIEW CONTAINER */}
               <div className={styles.paperWrapper}>
                 <div
-                  className={styles.scaledContainer}
+                  className={styles.pageContainerMobile}
                   style={{
                     fontFamily: examData.fontFamily || 'Amiri',
                     fontSize: `${examData.fontSize || 16.5}px`,
@@ -665,79 +688,97 @@ export default function App() {
                     const isLastPage = pageIdx === pages.length - 1;
 
                     return (
-                      <div key={pageIdx} className={styles.a4Page}>
-                        <div className={styles.pageBorder}>
-                          
-                          {/* EXACT HAWZAH HEADER DESIGN (MATCHING ATTACHED IMAGE) ON PAGE 1 */}
-                          {isFirstPage && (
-                            <>
-                              <div className={styles.examHeaderBox}>
-                                {/* Left column: School, Subject, Stage, Semester */}
-                                <div className={styles.headerLeft}>
-                                  <div>{examData.school || 'المدرسة: فخر المخدرات'}</div>
-                                  <div>المادة: {examData.subject}</div>
-                                  <div>المرحلة: {examData.stage}</div>
-                                  <div>{examData.semester}</div>
-                                </div>
+                      <div
+                        key={pageIdx}
+                        style={isMobile ? {
+                          width: '100%',
+                          display: 'flex',
+                          justifyContent: 'center',
+                          height: `calc(297mm * ${mobileScale})`,
+                          overflow: 'hidden',
+                          marginBottom: '16px'
+                        } : {}}
+                      >
+                        <div
+                          className={styles.a4Page}
+                          style={isMobile ? {
+                            transform: `scale(${mobileScale})`,
+                            transformOrigin: 'top center'
+                          } : {}}
+                        >
+                          <div className={styles.pageBorder}>
+                            
+                            {/* EXACT HAWZAH HEADER DESIGN (MATCHING ATTACHED IMAGE) ON PAGE 1 */}
+                            {isFirstPage && (
+                              <>
+                                <div className={styles.examHeaderBox}>
+                                  {/* Left column: School, Subject, Stage, Semester */}
+                                  <div className={styles.headerLeft}>
+                                    <div>{examData.school || 'المدرسة: فخر المخدرات'}</div>
+                                    <div>المادة: {examData.subject}</div>
+                                    <div>المرحلة: {examData.stage}</div>
+                                    <div>{examData.semester}</div>
+                                  </div>
 
-                                {/* Center column: Official Emblem + Clean Text Underneath (NO BORDER BOX) */}
-                                <div className={styles.headerCenter}>
-                                  <img src="/logo.png" alt="الشعار" className={styles.centerLogo} />
-                                  <div className={styles.centerTitleText}>
-                                    {examData.termTitle || 'امتحانات الفصل الأول'}
+                                  {/* Center column: Official Emblem + Clean Text Underneath (NO BORDER BOX) */}
+                                  <div className={styles.headerCenter}>
+                                    <img src="/logo.png" alt="الشعار" className={styles.centerLogo} />
+                                    <div className={styles.centerTitleText}>
+                                      {examData.termTitle || 'امتحانات الفصل الأول'}
+                                    </div>
+                                  </div>
+
+                                  {/* Right column: Al-Abbas Holy Shrine details */}
+                                  <div className={styles.headerRight}>
+                                    {(examData.centerHeader || []).map((line, lIdx) => (
+                                      <div key={lIdx}>{line}</div>
+                                    ))}
                                   </div>
                                 </div>
 
-                                {/* Right column: Al-Abbas Holy Shrine details */}
-                                <div className={styles.headerRight}>
-                                  {(examData.centerHeader || []).map((line, lIdx) => (
-                                    <div key={lIdx}>{line}</div>
+                                {/* Scope/Notice Banner */}
+                                {examData.notice && (
+                                  <div className={styles.examNotice}>
+                                    {examData.notice}
+                                  </div>
+                                )}
+                              </>
+                            )}
+
+                            {/* QUESTIONS FOR THIS PAGE */}
+                            <div className={styles.paperQuestions} style={{ paddingTop: isFirstPage ? '0' : '10px' }}>
+                              {pageQuestions.map((q) => (
+                                <div key={q.id} className={styles.paperQuestionItem}>
+                                  <div className={styles.paperQuestionTitle}>
+                                    <div>
+                                      <span>{q.number}/ </span>
+                                      <span>{q.mainText}</span>
+                                    </div>
+                                    {q.marks && <span className={styles.paperMarks}>{q.marks}</span>}
+                                  </div>
+
+                                  {/* Sub branches */}
+                                  {q.branches && q.branches.map((b) => (
+                                    <div key={b.id} className={styles.paperBranchItem}>
+                                      <div>
+                                        {b.label && <strong>{b.label}/ </strong>}
+                                        <span>{b.content}</span>
+                                      </div>
+                                      {b.marks && <span className={styles.paperMarks}>{b.marks}</span>}
+                                    </div>
                                   ))}
                                 </div>
-                              </div>
-
-                              {/* Scope/Notice Banner */}
-                              {examData.notice && (
-                                <div className={styles.examNotice}>
-                                  {examData.notice}
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* QUESTIONS FOR THIS PAGE */}
-                          <div className={styles.paperQuestions} style={{ paddingTop: isFirstPage ? '0' : '10px' }}>
-                            {pageQuestions.map((q) => (
-                              <div key={q.id} className={styles.paperQuestionItem}>
-                                <div className={styles.paperQuestionTitle}>
-                                  <div>
-                                    <span>{q.number}/ </span>
-                                    <span>{q.mainText}</span>
-                                  </div>
-                                  {q.marks && <span className={styles.paperMarks}>{q.marks}</span>}
-                                </div>
-
-                                {/* Sub branches */}
-                                {q.branches && q.branches.map((b) => (
-                                  <div key={b.id} className={styles.paperBranchItem}>
-                                    <div>
-                                      {b.label && <strong>{b.label}/ </strong>}
-                                      <span>{b.content}</span>
-                                    </div>
-                                    {b.marks && <span className={styles.paperMarks}>{b.marks}</span>}
-                                  </div>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-
-                          {/* TEACHER SIGNATURE (PINNED AT THE BOTTOM OF THE LAST PAGE) */}
-                          {isLastPage && examData.teacher && (
-                            <div className={styles.paperFooter}>
-                              أستاذة المادة : {examData.teacher}
+                              ))}
                             </div>
-                          )}
 
+                            {/* TEACHER SIGNATURE (PINNED AT THE BOTTOM OF THE LAST PAGE) */}
+                            {isLastPage && examData.teacher && (
+                              <div className={styles.paperFooter}>
+                                أستاذة المادة : {examData.teacher}
+                              </div>
+                            )}
+
+                          </div>
                         </div>
                       </div>
                     );
@@ -751,48 +792,47 @@ export default function App() {
       </main>
 
       {/* MOBILE STICKY BOTTOM NAVIGATION BAR */}
-      <div className={styles.mobileStickyBar}>
-        <button
-          className={`${styles.btn} ${activeTab === 'editor' ? styles.btnPrimary : styles.btnSecondary}`}
-          onClick={() => setActiveTab('editor')}
-          style={{ flex: 1 }}
-        >
-          <Edit3 size={15} />
-          النموذج
-        </button>
-        <button
-          className={`${styles.btn} ${activeTab === 'smartPaste' ? styles.btnPrimary : styles.btnSecondary}`}
-          onClick={() => setActiveTab('smartPaste')}
-          style={{ flex: 1 }}
-        >
-          <Sparkles size={15} />
-          استيراد
-        </button>
-        <button
-          className={`${styles.btn} ${activeTab === 'preview' ? styles.btnPrimary : styles.btnSecondary}`}
-          onClick={() => setActiveTab('preview')}
-          style={{ flex: 1 }}
-        >
-          <Eye size={15} />
-          المعاينة ({pages.length})
-        </button>
-        <button
-          className={`${styles.btn} ${styles.btnPrimary}`}
-          onClick={handlePrint}
-          style={{ padding: '7px 12px' }}
-          title="تحميل PDF"
-        >
-          <Printer size={15} />
-        </button>
-        <button
-          className={`${styles.btn} ${styles.btnSecondary}`}
-          onClick={handleExportWord}
-          style={{ padding: '7px 12px' }}
-          title="تحميل Word"
-        >
-          <Download size={15} />
-        </button>
-      </div>
+      {isMobile && (
+        <div className={styles.mobileStickyBar}>
+          <button
+            className={`${styles.mobileTabBtn} ${activeTab === 'editor' ? styles.mobileTabBtnActive : ''}`}
+            onClick={() => setActiveTab('editor')}
+          >
+            <Edit3 size={18} />
+            <span>النموذج</span>
+          </button>
+          <button
+            className={`${styles.mobileTabBtn} ${activeTab === 'smartPaste' ? styles.mobileTabBtnActive : ''}`}
+            onClick={() => setActiveTab('smartPaste')}
+          >
+            <Sparkles size={18} />
+            <span>استيراد</span>
+          </button>
+          <button
+            className={`${styles.mobileTabBtn} ${activeTab === 'preview' ? styles.mobileTabBtnActive : ''}`}
+            onClick={() => setActiveTab('preview')}
+          >
+            <Eye size={18} />
+            <span>المعاينة ({pages.length})</span>
+          </button>
+          <button
+            className={`${styles.btn} ${styles.btnPrimary}`}
+            onClick={handlePrint}
+            style={{ padding: '8px 12px' }}
+            title="تحميل PDF"
+          >
+            <Printer size={16} />
+          </button>
+          <button
+            className={`${styles.btn} ${styles.btnSecondary}`}
+            onClick={handleExportWord}
+            style={{ padding: '8px 12px' }}
+            title="تحميل Word"
+          >
+            <Download size={16} />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

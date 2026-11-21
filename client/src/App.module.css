@@ -1,4 +1,4 @@
-/* Pristine Light Mode, Exact Hawzah Header, and Mobile-First Responsive Design */
+/* Pristine Light Mode, Exact Hawzah Header, and Seamless Mobile/Desktop UI */
 :root {
   --primary: #1b5e20;
   --primary-hover: #144617;
@@ -27,19 +27,23 @@
   color: var(--text-main);
   font-family: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
   direction: rtl;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 /* ========================================================
-   TOP HEADER NAVIGATION (DESKTOP & MOBILE)
+   TOP HEADER NAVIGATION
    ======================================================== */
 .topNav {
   background: #ffffff;
   border-bottom: 1px solid var(--border);
-  padding: 8px 16px;
+  padding: 10px 16px;
   position: sticky;
   top: 0;
   z-index: 50;
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .navContent {
@@ -191,6 +195,8 @@
 .singleColumn {
   max-width: 900px;
   margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* Cards */
@@ -279,7 +285,7 @@
   margin-bottom: 12px;
 }
 
-/* Collapsible Question Cards for Mobile & Desktop */
+/* Collapsible Question Cards */
 .questionCard {
   background: #ffffff;
   border: 1px solid var(--border);
@@ -372,6 +378,8 @@
   gap: 12px;
   flex-wrap: wrap;
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .toolbarGroup {
@@ -395,17 +403,18 @@
   flex-direction: column;
   align-items: center;
   gap: 24px;
-  overflow-x: auto;
+  overflow: hidden;
   width: 100%;
   box-sizing: border-box;
 }
 
-.scaledContainer {
+.pageContainerMobile {
+  width: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
-  width: 100%;
+  gap: 20px;
 }
 
 /* Individual A4 Sheet (210mm x 297mm) */
@@ -544,25 +553,27 @@
 }
 
 /* ========================================================
-   MOBILE-FIRST ENHANCEMENTS (PHONES)
+   MOBILE-FIRST ENHANCEMENTS (PHONES < 960px)
    ======================================================== */
 .mobileStickyBar {
   display: none;
 }
 
-@media (max-width: 900px) {
-  .desktopSplit {
-    grid-template-columns: 1fr;
+@media (max-width: 960px) {
+  .topNav {
+    padding: 8px 12px;
   }
 
   .navContent {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
+    justify-content: center;
   }
 
-  .brand {
-    justify-content: center;
+  .brandTitle {
+    font-size: 0.98rem;
+  }
+
+  .brandSubtitle {
+    display: none;
   }
 
   .topActions {
@@ -571,34 +582,53 @@
 
   .mainLayout {
     padding: 10px;
-    padding-bottom: 75px;
+    padding-bottom: 80px; /* Space for sticky bottom bar */
   }
 
-  /* Sticky Bottom Bar for Mobile */
+  /* Fixed Bottom Bar on Mobile */
   .mobileStickyBar {
     display: flex;
     position: fixed;
     bottom: 0;
     left: 0;
     right: 0;
+    height: 60px;
     background: #ffffff;
     border-top: 1px solid var(--border);
-    padding: 8px 12px;
-    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.08);
-    z-index: 100;
+    padding: 6px 12px;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.1);
+    z-index: 9999;
     gap: 8px;
     align-items: center;
+    box-sizing: border-box;
   }
 
-  /* Auto-scale preview on mobile so full A4 page fits screen without horizontal scroll */
+  .mobileTabBtn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: transparent;
+    border: none;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-family: inherit;
+    padding: 4px 0;
+    border-radius: 8px;
+  }
+
+  .mobileTabBtnActive {
+    color: var(--primary);
+    background: var(--primary-light);
+  }
+
   .paperWrapper {
     padding: 12px 6px;
-  }
-
-  .scaledContainer {
-    transform: scale(0.44); /* Scales 210mm (~794px) to fit ~360px phones */
-    transform-origin: top center;
-    margin-bottom: -160mm; /* Removes trailing whitespace from scaling */
+    border-radius: 8px;
   }
 }
 
@@ -645,7 +675,7 @@
     display: block !important;
   }
 
-  .scaledContainer {
+  .pageContainerMobile {
     transform: none !important;
     margin-bottom: 0 !important;
     width: 100% !important;
