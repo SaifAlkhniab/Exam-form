@@ -612,11 +612,11 @@
   flex-shrink: 0;
 }
 
-/* Outer Borders */
+/* Outer Borders - Reduced top/side padding by half (4mm top, 5mm sides) to give header more width and move it up */
 .borderSingle {
   border: 2px solid #000000;
   height: 100%;
-  padding: 8mm 10mm;
+  padding: 4mm 5mm 8mm 5mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -625,7 +625,7 @@
 .borderDouble {
   border: 4px double #000000;
   height: 100%;
-  padding: 8mm 10mm;
+  padding: 4mm 5mm 8mm 5mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -634,7 +634,7 @@
 .borderNone {
   border: none;
   height: 100%;
-  padding: 8mm 10mm;
+  padding: 4mm 5mm 8mm 5mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -700,8 +700,10 @@
   box-sizing: border-box;
 }
 
-/* Right Section: Al-Abbas Holy Shrine details */
+/* Right Section: Al-Abbas Holy Shrine details (Hugs Right Edge) */
 .headerRight {
+  justify-self: start;
+  width: fit-content;
   text-align: right;
   direction: rtl;
   font-size: 1.05rem;
@@ -709,8 +711,9 @@
   font-weight: 700;
 }
 
-/* Center Section: Logo + Clean Text Underneath */
+/* Center Section: Logo + Clean Text Underneath (Centered) */
 .headerCenter {
+  justify-self: center;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -744,8 +747,10 @@
   margin-top: 6px;
 }
 
-/* Left Section: School, Subject, Stage, Semester (Aligned to RIGHT as per reference image) */
+/* Left Section: School, Subject, Stage, Semester (Hugs Left Edge for Perfect Bilateral Symmetry) */
 .headerLeft {
+  justify-self: end;
+  width: fit-content;
   text-align: right;
   direction: rtl;
   font-size: 1.05rem;
@@ -767,6 +772,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  padding: 0 4mm;
 }
 
 .paperQuestionItem {
@@ -904,17 +910,20 @@
   }
 
   .paperWrapper {
-    padding: 10px 4px !important;
+    padding: 12px 6px !important;
     border-radius: 8px;
-    overflow-x: hidden !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+    box-sizing: border-box;
   }
 
   .pageMobileWrapper {
-    width: 100% !important;
-    overflow: hidden !important;
+    width: auto !important;
+    overflow: visible !important;
     display: flex !important;
     justify-content: center !important;
-    margin-bottom: 14px !important;
+    margin: 0 auto 16px auto !important;
   }
 
   .a4Page {

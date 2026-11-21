@@ -1,61 +1,97 @@
-# Exam Form Creator (منظومة إعداد الأسئلة الامتحانية)
+# منظومة إعداد الأسئلة الامتحانية | Al-Kafeel Exam Form Creator
 
-A modern, responsive, mobile-first Arabic Exam Form generator designed specifically for Islamic religious schools (Hawzah / مدارس الكفيل الدينية) and formal educational institutions.
+[![React](https://img.shields.io/badge/React-18.x-61dafb.svg?style=flat&logo=react)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-5.x-646cff.svg?style=flat&logo=vite)](https://vitejs.dev/)
+[![Node.js](https://img.shields.io/badge/Node.js-20.x-339933.svg?style=flat&logo=node.js)](https://nodejs.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FSaifAlkhniab%2FExam-form)
 
-## Features
+**منظومة إعداد الأسئلة الامتحانية** هي تطبيق ويب عربي متكامل ومتجاوب بالكامل مع الهواتف الذكية وأجهزة الحاسوب، مصمم خصيصاً لأتمتة وتنسيق نماذج الامتحانات الرسمية الخاصة بـ **العتبة العباسية المقدسة - شعبة مدارس الكفيل الدينية النسوية**.
 
-- 📱 **Mobile-First & Light Mode**: Designed for phones and desktops with touch-friendly controls and light theme.
-- 💬 **Smart WhatsApp Parser**: Paste unstructured raw exam text received on WhatsApp; the engine automatically extracts the subject, grade/stage, semester, notes, questions, sub-branches, marks `(١٠ د)`, and teacher name.
-- 📝 **Interactive Form Builder**: Add, edit, reorder (move up/down), or delete questions and sub-branches with instant feedback.
-- 👁️ **True-to-Print A4 Live Preview**: Accurate representation matching the official template with the Holy Al-Abbas Shrine crest, Al-Kafeel division details, and page borders.
-- 🖨️ **1-Click Vector PDF Generation**: Produces crisp vector A4 PDFs without clipping or page-break issues.
-- 📄 **Direct Word (.docx) Export**: Generates true editable Microsoft Word documents matching the original template.
-- ☁️ **Cloud & Local Ready**: Runs locally on your machine or deploys to Google Cloud, Render, VPS, or any Node.js hosting. Zero database lock-in.
+يقوم النظام بتحويل النصوص العشوائية والملاحظات المنسوخة من تطبيقات المراسلة (مثل واتساب وتيليجرام والمستندات النصية) إلى أوراق امتحانات رسمية جاهزة للطباعة بقياس A4 وبصيغتي **PDF** و **Word (.docx)** بدقة متناهية مطابقة للمواصفات الرسمية المعتمدة.
 
 ---
 
-## How to Run Locally
+## ✨ المميزات الرئيسية | Key Features
 
-### 1. Install & Build
+- **⚡ استيراد وتحليل ذكي للنصوص (Smart Parser):**
+  الصق أي نص امتحان غير منسق من واتساب أو تيليجرام؛ وسيتعرف النظام تلقائياً على اسم المادة، المرحلة الدراسية، الفصل الدراسي، تعليمات ونطاق الامتحان، الأرقام، الفروع (`أ`، `ب`، `ج`)، الدرجات الامتحانية `(١٥ د)`، واسم أستاذة المادة.
+
+- **🏛️ ترويسة رسمية متطابقة مع نماذج العتبة العباسية المقدسة:**
+  - الجانب الأيمن: بيانات العتبة العباسية المقدسة وشعبة مدارس الكفيل الدينية النسوية.
+  - المنتصف: شعار مدارس الكفيل الرسمي مع عنوان الامتحان الفصلي.
+  - الجانب الأيسر: المدرسة، المادة، المرحلة، والفصل الدراسي بمحاذاة متناظرة ومتناسقة.
+
+- **📄 إدارة الصفحات المتعددة والحساب البصري للأوزان (Smart Pagination):**
+  نظام ذكي يمنع فيض الأسئلة خارج حدود الورقة، ويقوم بتوزيع الأسئلة الطويلة تلقائياً على صفحات A4 منفصلة ومؤطرة بالكامل، مع تثبيت توقيع واسم أستاذة المادة في ذيل الصفحة الأخيرة دائماً.
+
+- **📱 معاينة متجاوبة وتكبير تفاعلي على الهواتف (Interactive Mobile Zoom):**
+  - احتواء تلقائي كامل للورقة على شاشات الهواتف دون أي قص أفقي.
+  - إمكانية التكبير والتصغير (`-` / `+`)، والتبديل بنقرة واحدة إلى **حجم الطباعة الفعلي 100%**.
+
+- **🖨️ تصدير ثنائي عالي الدقة (PDF & Word DOCX):**
+  - **PDF رسمي متجه (Vector Print):** طباعة وحفظ PDF عالي الدقة بدون أي تشويش عبر محرك الطباعة المدمج.
+  - **مستند Word قابل للتعديل (.docx):** توليد ملفات وورد حقيقية ومنسقة بكافة الجداول والإطارات الرسمية عبر مكتبة `docx`.
+
+- **💬 مشاركة مباشرة للملفات عبر واتساب وتيليجرام (Direct File Sharing):**
+  إرسال ملف الوورد (.docx) أو ملف PDF كملف مرفق حقيقي مباشرة داخل محادثات واتساب وتيليجرام وتطبيقات الهاتف عبر واجهة المشاركة القياسية (Web Share API).
+
+- **🎨 أنماط تصميم متنوعة (Visual Customization):**
+  التحكم من تبويب **الإعدادات** في:
+  - نمط الترويسة: مستطيل كلاسيكي رسمي، تصميم تحريري مفتوح (Clean Editorial)، بطاقة حديثة بشريط علوي (Modern Ribbon)، أو مستطيل بحواف دائرية.
+  - نمط إطار الصفحة: إطار مفرد رسمي، إطار مزدوج، أو بدون إطار.
+  - نوع الخط العربي: الخط الأميري التقليدي، خط المصاحف (شهربان)، خط القاهرة الحديث، أو الخط المكتبي (Arial).
+
+---
+
+## 🚀 التشغيل المحلي | Local Development
+
+### المتطلبات المسبقة:
+- [Node.js](https://nodejs.org/) (الإصدار 18 أو 20 أو أحدث)
+- مدير الحزم `npm`
+
+### خطوات التثبيت:
+
 ```bash
-# In the project root directory
+# 1. استنساخ المستودع
+git clone https://github.com/SaifAlkhniab/Exam-form.git
+cd Exam-form
+
+# 2. تثبيت الحزم للواجهة والمخدم
 npm install
-npm run build
+cd client
+npm install
+cd ..
+
+# 3. تشغيل التطبيق في وضع التطوير
+npm run dev
 ```
 
-### 2. Start the Server
-```bash
-npm start
-```
-Then open your browser at `http://localhost:5000` (or access via your local network IP on mobile).
+افتح المتصفح على الرابط: `http://localhost:5000` (أو منفذ Vite `http://localhost:5173`).
 
 ---
 
-## How to Deploy to Google Cloud (or Any Cloud Hosting)
+## ☁️ النشر على منصة Vercel | Deploy to Vercel
 
-This project has zero vendor lock-in. It runs with standard Node.js:
-1. Ensure `PORT` environment variable is accepted (already implemented in `server.js`).
-2. Run `npm run build` during the build step.
-3. Start command: `node server.js` or `npm start`.
+تم إعداد المشروع بملف `vercel.json` ليعمل على **Vercel** بنقرة واحدة وبدون أي إعدادات معقدة:
+
+1. سجل الدخول إلى حسابك على [Vercel](https://vercel.com).
+2. اختر **"Add New Project"** ثم استورد المستودع: `SaifAlkhniab/Exam-form`.
+3. اضغط **Deploy**.
+4. سيتولى Vercel بناء مجلد `client` ونشر الواجهة على رابط عالمي سريع ومجاني مع شهادة SSL تلقائية.
 
 ---
 
-## Repository Structure
+## 🛠️ البنية التقنية | Tech Stack
 
-```
-exam form creater/
-├── client/                     # React + Vite Frontend
-│   ├── public/logo.png         # Official Al-Kafeel School Emblem
-│   ├── src/
-│   │   ├── utils/
-│   │   │   ├── parser.js       # Arabic WhatsApp Regex Parser
-│   │   │   └── docxExporter.js # Client-side Word (.docx) Generator
-│   │   ├── App.jsx             # Main Application Component
-│   │   ├── App.module.css      # Pristine Light-Mode & Print CSS
-│   │   ├── index.css           # Global CSS Reset
-│   │   └── main.jsx
-│   └── package.json
-├── server.js                   # Node.js Express Server
-├── package.json
-└── README.md
-```
+- **الواجهة الأمامية (Frontend):** React 18, Vite 5, CSS Modules (Pure Light-Theme).
+- **أيقونات الواجهة:** Lucide React.
+- **توليد مستندات Word:** `docx` & `file-saver`.
+- **الخادم المحلي (Backend):** Node.js & Express.
+- **الخطوط والطباعة:** Amiri, Scheherazade New, Cairo.
+
+---
+
+## 📄 الترخيص | License
+
+هذا المشروع مرخص تحت رخصة [MIT License](LICENSE).

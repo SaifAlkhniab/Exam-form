@@ -35,6 +35,8 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(typeof window !== 'undefined' ? window.innerWidth < 768 : false);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
   const [showExportMenu, setShowExportMenu] = useState(false);
+  const [zoomLevel, setZoomLevel] = useState(1);
+  const [isAutoFit, setIsAutoFit] = useState(true);
   const exportMenuRef = useRef(null);
 
   useEffect(() => {
@@ -46,6 +48,16 @@ export default function App() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Auto-calculated scale to fit the A4 page (794px wide) neatly within screen width
+  const fitScale = useMemo(() => {
+    if (typeof window === 'undefined') return 1;
+    const availableWidth = isMobile ? (windowWidth - 20) : Math.min(794, (windowWidth / 2) - 48);
+    const scale = availableWidth / 794;
+    return Math.min(1, Math.max(0.32, parseFloat(scale.toFixed(2))));
+  }, [windowWidth, isMobile]);
+
+  const activeZoom = isAutoFit ? fitScale : zoomLevel;
 
   // Close export menu on outside click
   useEffect(() => {
@@ -259,57 +271,37 @@ export default function App() {
     }
   };
 
-  // Handle WhatsApp Share
-  const handleShareWhatsApp = () => {
-    const questionsCount = examData.questions?.length || 0;
-    const text = encodeURIComponent(
-      `📋 *${examData.title || 'أسئلة امتحان'}*\n` +
-      `📌 *المادة:* ${examData.subject || '-'}\n` +
-      `🎓 *المرحلة:* ${examData.stage || '-'}\n` +
-      `🏫 *المدرسة:* ${examData.school || 'فخر المخدرات'}\n` +
-      `📝 *عدد الأسئلة:* ${questionsCount}\n\n` +
-      `✨ تم الإعداد عبر منظومة إعداد الأسئلة الامتحانية (العتبة العباسية المقدسة)`
-    );
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
-  };
-
-  // Handle Telegram Share
-  const handleShareTelegram = () => {
-    const text = encodeURIComponent(
-      `📋 *${examData.title || 'أسئلة امتحان'}*\n` +
-      `📌 *المادة:* ${examData.subject || '-'} | 🎓 *المرحلة:* ${examData.stage || '-'}\n` +
-      `🏫 *المدرسة:* ${examData.school || 'فخر المخدرات'}\n` +
-      `✨ تم الإعداد عبر منظومة إعداد الأسئلة الامتحانية`
-    );
-    window.open(`https://t.me/share/url?url=${encodeURIComponent(window.location.origin)}&text=${text}`, '_blank');
-  };
-
-  // Handle Native File Share (Word .docx)
-  const handleShareFile = async () => {
+  // Handle File Sharing (Word .docx) directly to WhatsApp, Telegram, or System Sheet
+  const handleShareDocxFile = async (targetApp = null) => {
     try {
-      showToast('جارٍ تجهيز المستند للمشاركة...');
+      showToast('جارٍ إعداد وتجهيز ملف Word للمشاركة...');
       const blob = await generateDocxBlob(examData);
       const filename = `${examData.subject || 'أسئلة'}_${examData.stage || 'امتحان'}.docx`;
       const file = new File([blob], filename, {
         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
       });
 
+      // If mobile or browser supports sharing files natively:
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           title: examData.title || 'أسئلة الامتحان',
-          text: `أسئلة مادة ${examData.subject || ''} - ${examData.stage || ''}`,
+          text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
           files: [file]
         });
         showToast('تمت مشاركة الملف بنجاح!');
-      } else if (navigator.share) {
-        await navigator.share({
-          title: examData.title || 'أسئلة الامتحان',
-          text: `أسئلة مادة ${examData.subject || ''} - ${examData.stage || ''}`,
-          url: window.location.href
-        });
+        return;
+      }
+
+      // Desktop fallback: download the docx file and open WhatsApp/Telegram Web
+      await exportToDocx(examData);
+      if (targetApp === 'whatsapp') {
+        showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح واتساب لإرسال الملف...');
+        window.open('https://web.whatsapp.com', '_blank');
+      } else if (targetApp === 'telegram') {
+        showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح تيليجرام لإرسال الملف...');
+        window.open('https://web.telegram.org', '_blank');
       } else {
-        await exportToDocx(examData);
-        showToast('تم تنزيل المستند (المتصفح لا يدعم قائمة المشاركة)');
+        showToast('تم تحميل المستند بنجاح (المتصفح المكتبي لا يدعم نافذة المشاركة)');
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -416,31 +408,31 @@ export default function App() {
                       className={styles.dropdownItem}
                       onClick={() => {
                         setShowExportMenu(false);
-                        handleShareWhatsApp();
+                        handleShareDocxFile('whatsapp');
                       }}
                     >
                       <MessageCircle size={16} color="#25D366" />
-                      <span>إرسال عبر واتساب (WhatsApp)</span>
+                      <span>مشاركة ملف Word عبر واتساب</span>
                     </button>
                     <button
                       className={styles.dropdownItem}
                       onClick={() => {
                         setShowExportMenu(false);
-                        handleShareTelegram();
+                        handleShareDocxFile('telegram');
                       }}
                     >
                       <Send size={16} color="#0088cc" />
-                      <span>إرسال عبر تيليجرام (Telegram)</span>
+                      <span>مشاركة ملف Word عبر تيليجرام</span>
                     </button>
                     <button
                       className={styles.dropdownItem}
                       onClick={() => {
                         setShowExportMenu(false);
-                        handleShareFile();
+                        handleShareDocxFile();
                       }}
                     >
                       <Share2 size={16} color="#6366f1" />
-                      <span>مشاركة المستند عبر التطبيقات</span>
+                      <span>مشاركة الملف عبر التطبيقات (Share)</span>
                     </button>
                   </div>
                 )}
@@ -939,6 +931,59 @@ export default function App() {
                     {pages.length} صفحات A4
                   </span>
                 </div>
+
+                {/* ZOOM CONTROLS (FIT TO SCREEN / ZOOM IN / ZOOM OUT / 100% REAL PRINT) */}
+                <div className={styles.toolbarGroup}>
+                  <span className={styles.toolbarLabel}>معاينة:</span>
+                  <div className={styles.stepperContainer}>
+                    <button
+                      type="button"
+                      className={styles.stepperBtn}
+                      onClick={() => {
+                        setIsAutoFit(false);
+                        setZoomLevel(prev => Math.max(0.35, parseFloat((prev - 0.08).toFixed(2))));
+                      }}
+                      title="تصغير المعاينة"
+                    >
+                      -
+                    </button>
+                    <span
+                      className={styles.stepperValue}
+                      style={{ minWidth: '55px', cursor: 'pointer' }}
+                      onClick={() => setIsAutoFit(!isAutoFit)}
+                      title="انقر للتبديل بين الاحتواء والحجم الأصلي"
+                    >
+                      {Math.round(activeZoom * 100)}%
+                    </span>
+                    <button
+                      type="button"
+                      className={styles.stepperBtn}
+                      onClick={() => {
+                        setIsAutoFit(false);
+                        setZoomLevel(prev => Math.min(1.4, parseFloat((prev + 0.08).toFixed(2))));
+                      }}
+                      title="تكبير المعاينة"
+                    >
+                      +
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    className={`${styles.btn} ${styles.btnSecondary}`}
+                    style={{ padding: '4px 8px', fontSize: '0.74rem' }}
+                    onClick={() => {
+                      if (isAutoFit) {
+                        setIsAutoFit(false);
+                        setZoomLevel(1.0);
+                      } else {
+                        setIsAutoFit(true);
+                      }
+                    }}
+                    title={isAutoFit ? 'عرض بحجم الطباعة الحقيقي 100%' : 'ملاءمة الصفحة مع الشاشة'}
+                  >
+                    {isAutoFit ? '100% طباعة' : '📱 احتواء'}
+                  </button>
+                </div>
               </div>
 
               {/* A4 PREVIEW CONTAINER */}
@@ -956,8 +1001,26 @@ export default function App() {
                     const isLastPage = pageIdx === pages.length - 1;
 
                     return (
-                      <div key={pageIdx} className={styles.pageMobileWrapper}>
-                        <div className={styles.a4Page}>
+                      <div
+                        key={pageIdx}
+                        className={styles.pageMobileWrapper}
+                        style={{
+                          width: `${Math.round(794 * activeZoom)}px`,
+                          height: `${Math.round(1123 * activeZoom)}px`,
+                          position: 'relative'
+                        }}
+                      >
+                        <div
+                          className={styles.a4Page}
+                          style={{
+                            transform: `scale(${activeZoom})`,
+                            transformOrigin: 'top center',
+                            position: 'absolute',
+                            top: 0,
+                            left: '50%',
+                            marginLeft: '-397px'
+                          }}
+                        >
                           <div className={pageBorderClass}>
                             
                             {/* EXACT HAWZAH HEADER DESIGN MATCHING IMAGE 2 ON PAGE 1 */}
@@ -1123,31 +1186,31 @@ export default function App() {
                   className={styles.dropdownItem}
                   onClick={() => {
                     setShowExportMenu(false);
-                    handleShareWhatsApp();
+                    handleShareDocxFile('whatsapp');
                   }}
                 >
                   <MessageCircle size={16} color="#25D366" />
-                  <span>إرسال عبر واتساب (WhatsApp)</span>
+                  <span>مشاركة ملف Word عبر واتساب</span>
                 </button>
                 <button
                   className={styles.dropdownItem}
                   onClick={() => {
                     setShowExportMenu(false);
-                    handleShareTelegram();
+                    handleShareDocxFile('telegram');
                   }}
                 >
                   <Send size={16} color="#0088cc" />
-                  <span>إرسال عبر تيليجرام (Telegram)</span>
+                  <span>مشاركة ملف Word عبر تيليجرام</span>
                 </button>
                 <button
                   className={styles.dropdownItem}
                   onClick={() => {
                     setShowExportMenu(false);
-                    handleShareFile();
+                    handleShareDocxFile();
                   }}
                 >
                   <Share2 size={16} color="#6366f1" />
-                  <span>مشاركة عبر التطبيقات</span>
+                  <span>مشاركة الملف عبر التطبيقات (Share)</span>
                 </button>
               </div>
             )}
