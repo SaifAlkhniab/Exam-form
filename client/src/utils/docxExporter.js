@@ -10,7 +10,10 @@ import {
   AlignmentType,
   BorderStyle,
   ImageRun,
-  PageBreak
+  PageBreak,
+  PageBorderOffsetFrom,
+  PageBorderDisplay,
+  PageBorderZOrder
 } from 'docx';
 import fileSaver from 'file-saver';
 const saveAs = fileSaver.saveAs || fileSaver;
@@ -325,20 +328,32 @@ export async function createDocxDocument(examData) {
     );
   }
 
+  let docxBorderStyle = BorderStyle.SINGLE;
+  let docxBorderSize = 16;
+  if (examData.pageBorderStyle === 'double') {
+    docxBorderStyle = BorderStyle.DOUBLE;
+    docxBorderSize = 24;
+  }
+
+  const pageBordersConfig = examData.pageBorderStyle === 'none' ? undefined : {
+    pageBorders: {
+      display: PageBorderDisplay.ALL_PAGES,
+      offsetFrom: PageBorderOffsetFrom.PAGE,
+      zOrder: PageBorderZOrder.FRONT
+    },
+    pageBorderTop: { style: docxBorderStyle, size: docxBorderSize, color: '000000' },
+    pageBorderBottom: { style: docxBorderStyle, size: docxBorderSize, color: '000000' },
+    pageBorderLeft: { style: docxBorderStyle, size: docxBorderSize, color: '000000' },
+    pageBorderRight: { style: docxBorderStyle, size: docxBorderSize, color: '000000' }
+  };
+
   return new Document({
     sections: [
       {
         properties: {
           page: {
             margin: { top: 720, bottom: 720, left: 720, right: 720 },
-            borders: {
-              pageBorders: {
-                top: { style: BorderStyle.SINGLE, size: 12, color: '000000' },
-                bottom: { style: BorderStyle.SINGLE, size: 12, color: '000000' },
-                left: { style: BorderStyle.SINGLE, size: 12, color: '000000' },
-                right: { style: BorderStyle.SINGLE, size: 12, color: '000000' }
-              }
-            }
+            ...(pageBordersConfig ? { borders: pageBordersConfig } : {})
           }
         },
         children: bodyChildren

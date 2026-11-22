@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import styles from './App.module.css';
 import { defaultExamData, parseExamText } from './utils/parser';
 import { exportToDocx, generateDocxBlob } from './utils/docxExporter';
+import html2pdf from 'html2pdf.js';
 import fileSaver from 'file-saver';
 const saveAs = fileSaver.saveAs || fileSaver;
 import {
@@ -359,56 +360,116 @@ export default function App() {
     }
   };
 
-  // Handle File Sharing (Word .docx) directly to WhatsApp, Telegram, or System Sheet
-  const handleShareDocxFile = async (targetApp = null) => {
+  // Generate 1:1 A4 PDF Blob using html2pdf
+  const generatePdfBlob = async () => {
+    const container = document.querySelector(`.${styles.pageContainerMobile}`);
+    if (!container) throw new Error('Preview container not found');
+
+    // Clone container to avoid affecting live preview DOM
+    const clone = container.cloneNode(true);
+    clone.style.width = '794px';
+    clone.style.margin = '0 auto';
+    clone.style.background = '#ffffff';
+
+    const wrappers = clone.querySelectorAll(`.${styles.pageMobileWrapper}`);
+    wrappers.forEach((w) => {
+      w.style.width = '794px';
+      w.style.height = '1123px';
+      w.style.transform = 'none';
+      w.style.marginBottom = '0';
+    });
+
+    const pageElements = clone.querySelectorAll(`.${styles.a4Page}`);
+    pageElements.forEach((p, idx) => {
+      p.style.transform = 'none';
+      p.style.position = 'relative';
+      p.style.left = '0';
+      p.style.marginLeft = '0';
+      p.style.width = '794px';
+      p.style.height = '1123px';
+      p.style.boxShadow = 'none';
+      if (idx < pageElements.length - 1) {
+        p.style.pageBreakAfter = 'always';
+      }
+    });
+
+    const hiddenWrapper = document.createElement('div');
+    hiddenWrapper.style.position = 'fixed';
+    hiddenWrapper.style.top = '-9999px';
+    hiddenWrapper.style.left = '-9999px';
+    hiddenWrapper.style.width = '794px';
+    hiddenWrapper.appendChild(clone);
+    document.body.appendChild(hiddenWrapper);
+
     try {
-      showToast('جارٍ تجهيز ملف Word...');
-      const blob = await generateDocxBlob(examData);
-      const filename = `${examData.subject || 'أسئلة'}_${examData.stage || 'امتحان'}.docx`;
-      const file = new File([blob], filename, {
-        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      });
-
-      const downloadAndNotify = () => {
-        saveAs(blob, filename);
-        if (targetApp === 'whatsapp') {
-          showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح واتساب لإرفاق الملف...');
-          setTimeout(() => {
-            window.open('https://web.whatsapp.com', '_blank');
-          }, 350);
-        } else if (targetApp === 'telegram') {
-          showToast('تم حفظ ملف Word في التنزيلات! جارٍ فتح تيليجرام لإرفاق الملف...');
-          setTimeout(() => {
-            window.open('https://web.telegram.org', '_blank');
-          }, 350);
-        } else {
-          showToast('تم تحميل مستند Word بنجاح!');
-        }
+      const opt = {
+        margin: 0,
+        filename: `${examData.subject || 'أسئلة'}_امتحان.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
       };
+      return await html2pdf().set(opt).from(clone).output('blob');
+    } finally {
+      if (document.body.contains(hiddenWrapper)) {
+        document.body.removeChild(hiddenWrapper);
+      }
+    }
+  };
 
-      const isMobileDevice = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // Unified Native Mobile Share (Word .docx or PDF)
+  const handleShareFile = async (format) => {
+    try {
+      const isDocx = format === 'docx';
+      showToast(isDocx ? 'جارٍ تجهيز مستند Word للمشاركة...' : 'جارٍ تجهيز ملف PDF للمشاركة...');
 
-      if (isMobileDevice && navigator.canShare && navigator.canShare({ files: [file] })) {
+      let blob;
+      let filename;
+      let mimeType;
+
+      if (isDocx) {
+        blob = await generateDocxBlob(examData);
+        filename = `${examData.subject || 'أسئلة'}_${examData.stage || 'امتحان'}.docx`;
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else {
+        blob = await generatePdfBlob();
+        filename = `${examData.subject || 'أسئلة'}_${examData.stage || 'امتحان'}.pdf`;
+        mimeType = 'application/pdf';
+      }
+
+      const file = new File([blob], filename, { type: mimeType });
+
+      // Native Mobile Share Sheet (Android / iOS / supported OS)
+      if (typeof navigator !== 'undefined' && navigator.share) {
         try {
-          await navigator.share({
-            title: examData.title || 'أسئلة الامتحان',
-            text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
-            files: [file]
-          });
-          showToast('تمت مشاركة الملف بنجاح!');
-          return;
+          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: examData.title || 'أسئلة الامتحان',
+              text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
+              files: [file]
+            });
+            showToast('تمت مشاركة الملف بنجاح!');
+            return;
+          }
         } catch (shareErr) {
-          if (shareErr.name === 'AbortError') return;
-          downloadAndNotify();
-          return;
+          if (shareErr.name === 'AbortError') {
+            return; // User cancelled the native share dialog
+          }
+          console.warn('Native share failed, downloading instead:', shareErr);
         }
       }
 
-      downloadAndNotify();
+      // Graceful Fallback: Download file directly to user device without web redirects
+      saveAs(blob, filename);
+      showToast('تم حفظ الملف في جهازك بنجاح! يمكنك الآن مشاركته وإرساله عبر أي تطبيق تفضله.');
     } catch (err) {
-      console.error(err);
-      await exportToDocx(examData);
-      showToast('تم تنزيل المستند بنجاح في جهازك');
+      console.error('Share error:', err);
+      if (format === 'docx') {
+        await exportToDocx(examData);
+      } else {
+        handlePrint();
+      }
+      showToast('تم تنزيل الملف على جهازك.');
     }
   };
 
@@ -1314,11 +1375,7 @@ export default function App() {
                     style={{ padding: '12px', fontSize: '0.92rem', justifyContent: 'center' }}
                     onClick={() => {
                       setShowExportModal(false);
-                      if (selectedExportFormat === 'docx') {
-                        handleShareDocxFile();
-                      } else {
-                        handlePrint();
-                      }
+                      handleShareFile(selectedExportFormat);
                     }}
                   >
                     <Share2 size={18} />
@@ -1326,36 +1383,6 @@ export default function App() {
                   </button>
                 </div>
               </div>
-
-              {/* Quick Messaging App Actions for Word */}
-              {selectedExportFormat === 'docx' && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
-                  <button
-                    type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '8px', fontSize: '0.8rem', justifyContent: 'center' }}
-                    onClick={() => {
-                      setShowExportModal(false);
-                      handleShareDocxFile('whatsapp');
-                    }}
-                  >
-                    <MessageCircle size={15} color="#25D366" />
-                    <span>إرسال عبر واتساب</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.btn} ${styles.btnSecondary}`}
-                    style={{ padding: '8px', fontSize: '0.8rem', justifyContent: 'center' }}
-                    onClick={() => {
-                      setShowExportModal(false);
-                      handleShareDocxFile('telegram');
-                    }}
-                  >
-                    <Send size={15} color="#0088cc" />
-                    <span>إرسال عبر تيليجرام</span>
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         </div>
