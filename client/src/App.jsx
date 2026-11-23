@@ -437,31 +437,36 @@ export default function App() {
         mimeType = 'application/pdf';
       }
 
-      const file = new File([blob], filename, { type: mimeType });
+      // Safe ASCII filename for native OS share intents to avoid multi-byte encoding rejection
+      const safeShareName = isDocx ? 'exam_document.docx' : 'exam_document.pdf';
+      const file = new File([blob], safeShareName, { type: mimeType });
 
       // Native Mobile Share Sheet (Android / iOS / supported OS)
       if (typeof navigator !== 'undefined' && navigator.share) {
         try {
-          if (!navigator.canShare || navigator.canShare({ files: [file] })) {
-            await navigator.share({
-              title: examData.title || 'أسئلة الامتحان',
-              text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
-              files: [file]
-            });
-            showToast('تمت مشاركة الملف بنجاح!');
-            return;
-          }
+          // Attempt direct native file share first
+          await navigator.share({
+            title: examData.title || 'أسئلة الامتحان',
+            text: `مرفق ملف أسئلة: ${examData.subject || ''} (${examData.stage || ''})`,
+            files: [file]
+          });
+          showToast('تمت مشاركة الملف بنجاح!');
+          return;
         } catch (shareErr) {
           if (shareErr.name === 'AbortError') {
             return; // User cancelled the native share dialog
           }
-          console.warn('Native share failed, downloading instead:', shareErr);
+          console.warn('Native direct file share not permitted by this browser for this format:', shareErr);
         }
       }
 
-      // Graceful Fallback: Download file directly to user device without web redirects
+      // Graceful Fallback: Download file directly to user device with proper Arabic name
       saveAs(blob, filename);
-      showToast('تم حفظ الملف في جهازك بنجاح! يمكنك الآن مشاركته وإرساله عبر أي تطبيق تفضله.');
+      if (isDocx) {
+        showToast('تم حفظ مستند Word في جهازك! متصفح الهاتف يقيّد المشاركة المباشرة بملفات PDF، يمكنك إرفاق الملف يدوياً.');
+      } else {
+        showToast('تم حفظ الملف في جهازك بنجاح! يمكنك الآن مشاركته وإرساله عبر أي تطبيق تفضله.');
+      }
     } catch (err) {
       console.error('Share error:', err);
       if (format === 'docx') {
